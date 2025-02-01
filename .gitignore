@@ -1,0 +1,8 @@
+build/
+x/
+*.user
+*.x
+.cxx
+.idea
+.gradle
+local.properties

@@ -1,0 +1,36 @@
+#include "CCamera.h"
+
+CCamera::CCamera(const char* name) : CObject(name) {
+    type = ntCAMERA; 
+    SetPerspective(1, 45, 1, 1000);
+    if(!!default_allocator) Init();
+    else LOGW("CCamera:  Allocator not initialized yet. Call CCamera.Init() when its ready.");
+}
+
+void CCamera::Init() {
+    cam_ubo.Allocate(sizeof(CamUniform));
+}
+
+// Use the camera's WorldMatrix, to calculate the ViewMatrix.
+void CCamera::Apply(VkFence fence) {
+    cam_uniform.proj = proj_matrix;
+    cam_uniform.view = worldMatrix.WorldToView();
+    cam_uniform.projInverse = cam_uniform.proj.Inverse();
+    cam_uniform.viewInverse = cam_uniform.view.Inverse_fast();
+    cam_uniform.flags = flags;
+    cam_ubo.fence=fence;
+    cam_ubo.Update(&cam_uniform);
+}
+
+void CCamera::SetPerspective(float aspect, float fovy, float nearplane, float farplane) {
+    proj_matrix.SetPerspective(aspect, fovy, nearplane, farplane);
+ }
+
+void CCamera::SetOrthographic(float left, float right, float bottom, float top, float nearplane, float farplane) {
+    proj_matrix.SetOrtho(left, right, bottom, top, nearplane, farplane);
+}
+
+void CCamera::Transform() {
+    CObject::Transform();
+    //Apply();
+}
