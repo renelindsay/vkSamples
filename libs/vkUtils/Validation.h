@@ -77,19 +77,7 @@ extern char LAST_CALL[1024];  // Location of last call made with VKERRCHECK
 
 //======================================================================================================
 #include <assert.h>
-#include <stdio.h> //for Windows.
-
-//=========================================== Vulkan Wrapper ===========================================
-//  WARNING: If you enable USE_VULKAN_WRAPPER, make sure vulkan_wrapper.h is #included BEFORE vulkan.h
-//
-//#define USE_VULKAN_WRAPPER
-
-//#ifdef USE_VULKAN_WRAPPER
-//#include <vulkan_wrapper.h>  // PC: Build dispatch table
-//#else
-//#include <vulkan/vulkan.h>   // Android: This must be included AFTER native.h
-//#endif
-
+//#include <stdio.h> //for Windows.
 #include "vexel.h"
 //======================================================================================================
 

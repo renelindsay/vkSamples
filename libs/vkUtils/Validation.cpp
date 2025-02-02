@@ -1,31 +1,12 @@
 #include "Validation.h"
 #include <string.h>  // for strlen
 
-// TODO: breakpoint using:
-//  raise(SIGINT);
-//  raise(SIGTRAP);
-
-
 char LAST_CALL[1024]={0};
-/*
-//--------------------Vulkan Dispatch Table---------------------
-// WARNING: vulkan_wrapper.h must be #included BEFORE vulkan.h
 
-#ifdef VK_NO_PROTOTYPES
-struct INITVULKAN {
-    INITVULKAN() {
-#ifdef WIN32
-        EnableVTMode();
-#endif
-        bool success = (InitVulkan() == 1);  // Returns true if this device supports Vulkan.
-        printf("Initialize Vulkan: ");
-        printf(success ? GREEN"SUCCESS\n" : RED"FAILED (Vulkan driver not found.)\n");
-        printf(RESET "");
-    }
-} INITVULKAN;  // Run this function BEFORE main.
-#endif
-//-------------------------------------------------------------
-*/
+//#ifdef WIN32
+//struct INITVT{INITVT(){EnableVTMode(); printf("INITVT\n");}}INITVT;
+//#endif
+
 //-----------------------Error Checking------------------------
 #if !defined(NDEBUG) || defined(ENABLE_LOGGING) || defined(ENABLE_VALIDATION)
 //  In Debug mode, convert a VkResult return value to a string.
