@@ -1,6 +1,5 @@
 #ifndef SBT_H
 #define SBT_H
-//#include "CDevices.h"
 #include "Buffers.h"
 
 class SBT {

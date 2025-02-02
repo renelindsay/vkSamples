@@ -1,11 +1,7 @@
 #ifndef BLAS_H
 #define BLAS_H
 
-//#include "vulkan_wrapper.h"
-#include "vexel.h"
 #include "Buffers.h"
-//#include "matrix.h"
-#include "vkray_helpers.h"
 
 //GeometryInstance
 struct MeshObject {

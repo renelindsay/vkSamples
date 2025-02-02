@@ -1,4 +1,5 @@
 #include "BLAS.h"
+#include "vkray_helpers.h"
 
 //#define SIZE(VECTOR) (uint32_t)VECTOR.size()
 

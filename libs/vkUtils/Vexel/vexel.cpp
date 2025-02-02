@@ -1,6 +1,6 @@
 // Vulkan Extension Loader (Vexel)
 
-// Copyright © 2024 Rene Lindsay (rjklindsay@hotmail.com)
+// Copyright Â© 2024 Rene Lindsay (rjklindsay@hotmail.com)
 // Report bugs and download new versions at https://github.com/renelindsay/Vexel
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy

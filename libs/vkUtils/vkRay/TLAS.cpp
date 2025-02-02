@@ -1,4 +1,5 @@
 ﻿#include "TLAS.h"
+#include "vkray_helpers.h"
 
 VkTransformMatrixKHR vkMatrix(mat4 m) {
     return  {m.m00, m.m01, m.m02, m.m03,

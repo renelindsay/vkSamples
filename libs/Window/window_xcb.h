@@ -1,3 +1,5 @@
+//#define VK_USE_PLATFORM_XCB_KHR
+//#define WINDOW_IMPLEMENTATION
 //============================XCB===============================
 #ifdef VK_USE_PLATFORM_XCB_KHR
 
@@ -11,7 +13,6 @@
 #include <X11/Xlib-xcb.h>         // Xlib + XCB
 #include <xkbcommon/xkbcommon.h>  // Keyboard
 #include <X11/Xresource.h>        // DPI scale
-#include <limits.h>               // LONG_MAX
 #include <stdlib.h>               // atof
 #ifdef ENABLE_XCB_IMAGE
 #include <xcb/xcb_image.h>        // ShowImage  libxcb-image0-dev
@@ -105,7 +106,7 @@ class Window_xcb : public WindowBase {
     //void CreateSurface(VkInstance instance);
 
   public:
-     Window_xcb() {Create();}
+    Window_xcb() {Create();}
     Window_xcb(const char* title, uint width, uint height);
     virtual ~Window_xcb();
     EventType GetEvent(bool wait_for_event = false);
@@ -198,6 +199,19 @@ void Window_xcb::Create(const char* title, uint width, uint height) {
     //--------------------
     SetTitle(title);
     eventFIFO.push(ResizeEvent(width, height));  // ResizeEvent BEFORE focus, for consistency with win32 and android
+
+    //----Map the window----
+    xcb_map_window(xcb_connection, xcb_window);
+    xcb_flush(xcb_connection);
+
+    // Wait for the window to be mapped (so resize works correctly)
+    xcb_generic_event_t *event;
+    while ((event = xcb_wait_for_event(xcb_connection))) {
+        bool mapped = ((event->response_type & ~0x80) == XCB_MAP_NOTIFY);
+        free(event);
+        if(mapped) break;
+    }
+    //----------------------
 }
 
 Window_xcb::~Window_xcb() {
