@@ -26,7 +26,7 @@ endif()
 #=================================================================
 #=============================WINDOWS=============================
 if(WIN32)
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
     #add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)
     #add_definitions(-D_CRT_SECURE_NO_WARNINGS)
     #add_library(${PROJECT_NAME} ${SRC_LIST})

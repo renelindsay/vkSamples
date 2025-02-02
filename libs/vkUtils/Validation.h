@@ -114,7 +114,7 @@ class CDebugReport {
 
   public:
     VkDebugReportFlagsEXT GetFlags() { return flags; }         // Returns current flag settings.
-    void SetFlags(VkDebugReportFlagsEXT flags);                // Select which typ/e of messages to display
+    void SetFlags(VkDebugReportFlagsEXT flags);                // Select which type of messages to display
     void SetCallback(PFN_vkDebugReportCallbackEXT debugFunc);  // Set a custom callback function for printing debug reports
 };
 //=======================================================================================================

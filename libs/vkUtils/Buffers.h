@@ -41,8 +41,8 @@
     public:                                                  \
         CLASS(const CLASS&) = delete;                        \
         CLASS& operator=(const CLASS&) = delete;             \
-        CLASS(CLASS&& other) : CLASS() { swap(other); }      \
-        CLASS& operator=(CLASS&& other) {                    \
+        CLASS(CLASS&& other) noexcept { swap(other); }       \
+        CLASS& operator=(CLASS&& other) noexcept {           \
             if(this != &other) swap(other);                  \
             return *this;                                    \
         }                                                    \
@@ -208,6 +208,7 @@ class ABO : public CvkBuffer {  // Acceleration Buffer (tlas/blas)
     MOVE_SEMANTICS(ABO)
     void CreateAS(VkAccelerationStructureTypeKHR type);
 public:
+    ABO() : CvkBuffer() {}
     enum ABOType {TLAS, BLAS};
     VkAccelerationStructureKHR structure = VK_NULL_HANDLE;
     using CvkBuffer::CvkBuffer;
