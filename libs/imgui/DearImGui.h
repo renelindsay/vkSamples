@@ -4,6 +4,7 @@
 #include "CDevices.h"
 #include "Swapchain.h"
 #include "CRenderpass.h"
+#include "vkWindow.h"
 
 #include "imgui.h"
 #include "imgui_impl_vkWindow.h"

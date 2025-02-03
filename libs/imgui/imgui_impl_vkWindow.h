@@ -16,7 +16,6 @@
 
 //---------------------------------
 #include <string.h>  //for memset
-//#include <vulkan_wrapper.h>
 #include <vexel.h>
 #include <vulkan/vulkan.h>
 #include "imgui.h"

@@ -1,14 +1,14 @@
 #include "OffScreen.h"
+#include "CSkybox.h"
+#include "Mesh.h"
 
 void OffScreen::Init(CQueue& queue) {
     //--- Renderpass ---
-    //VkFormat color_fmt = VK_FORMAT_R8G8B8A8_UNORM;
-    //VkFormat color_fmt = VK_FORMAT_B8G8R8A8_UNORM;
     VkFormat color_fmt = VK_FORMAT_B8G8R8A8_SRGB;
     VkFormat depth_fmt = queue.gpu.FindDepthFormat();
     renderpass.Init(queue.device, 1);
-    uint32_t depth_att = renderpass.NewDepthAttachment  (depth_fmt, VK_SAMPLE_COUNT_8_BIT);
-    uint32_t color_att = renderpass.NewPresentAttachment(color_fmt, VK_SAMPLE_COUNT_8_BIT,{1.f,0,0,1.f});
+    uint32_t depth_att = renderpass.NewDepthAttachment  (depth_fmt, VK_SAMPLE_COUNT_4_BIT);
+    uint32_t color_att = renderpass.NewPresentAttachment(color_fmt, VK_SAMPLE_COUNT_4_BIT,{1.f,0,0,1.f});
     auto& subpass0 = renderpass.subpasses[0];
     subpass0.AddColorAttachment(color_att);
     subpass0.AddDepthAttachment(depth_att);
@@ -31,6 +31,8 @@ void OffScreen::Init(CQueue& queue) {
     sky_pipeline.shader.MaxDescriptorSets(3);
     sky_pipeline.shader.LoadVertShader("shaders/spirv/sky_vert.spv");
     sky_pipeline.shader.LoadFragShader("shaders/spirv/sky_frag.spv");
+    sky_pipeline.depthStencilState.depthWriteEnable = VK_FALSE;          // Skybox does not modify depth
+    sky_pipeline.rasterizer.depthClampEnable = VK_TRUE;                  // Dont clip skybox on farplane
     sky_pipeline.CreateGraphicsPipeline();
     //-----------------
 }

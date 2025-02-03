@@ -54,7 +54,6 @@
 #ifndef CRENDERPASS_H
 #define CRENDERPASS_H
 
-#include "vkWindow.h"
 #include "vkImages.h"
 #include <vector>
 

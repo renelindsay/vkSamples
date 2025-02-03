@@ -6,9 +6,7 @@
 
 #include "vkWindow.h"
 #include "CDevices.h"
-//#include "CRenderpass.h"
 #include "Swapchain.h"
-//#include "CPipeline.h"
 #include "Buffers.h"
 #include "CImage.h"
 #include "matrix.h"
@@ -25,8 +23,6 @@
 #include "OnScreen.h"
 #include "OffScreen.h"
 #include "rt.h"
-
-//#include "vkray.h"
 
 //-- EVENT HANDLERS --
 class MainWindow : public vkWindow {
@@ -142,7 +138,7 @@ int main(int argc, char *argv[]) {
     CInstance instance(true);                                   // Create a Vulkan Instance
     instance.DebugReport.SetFlags(14);                          // Error+Perf+Warning flags
     MainWindow window;                                          // Create a Vulkan window
-    window.SetTitle("07_vkRay");                                // Set the window title
+    window.SetTitle("04_vkRay");                                // Set the window title
     window.SetWinSize(640, 480);                                // Set the window size (Desktop)
     window.SetWinPos(0, 0);                                     // Set the window position to top-left
     VkSurfaceKHR surface = window.CreateVkSurface(instance);    // Create the Vulkan surface

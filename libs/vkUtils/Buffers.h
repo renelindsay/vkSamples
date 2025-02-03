@@ -189,6 +189,7 @@ public:
     using CvkBuffer::CvkBuffer;
     UBO() : CvkBuffer() {}
     UBO(VkDeviceSize size, uint32_t count=1);
+    void Set(const void* data, size_t size);
     void Allocate(VkDeviceSize size, uint32_t count=1);
     void Update(const void* data);                  // update entire buffer
     void Update(const void* data, uint32_t index);  // update a single item only

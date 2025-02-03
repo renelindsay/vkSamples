@@ -1,5 +1,4 @@
 #include "Mesh.h"
-#include <array>
 
 #undef repeat
 #undef forXY
@@ -12,7 +11,6 @@ void CMesh::Init() {}
 void CMesh::Bind() {
     assert(pipeline && "Pipeline not set.");
     CShader& shader = pipeline->shader;
-    if(!ubo.size()) ubo.Allocate(sizeof(ubo_data));
     shader.Bind("model", ubo);
     //material.Bind(shader);
     shader.Bind("tex_albedo",   material.texture.albedo);
@@ -24,22 +22,18 @@ void CMesh::Bind() {
 }
 
 void CMesh::UpdateUBO() {  // (does NOT update textures)
-    //if(!ubo.size()) ubo.Allocate(sizeof(ubo_data));
-    ubo_data.matrix  = worldMatrix;
+    ubo_data.matrix   = worldMatrix;
     ubo_data.color[0] = material.color.albedo;
     ubo_data.color[1] = material.color.emission;
     ubo_data.color[2] = material.color.normal;
     ubo_data.color[3] = material.color.orm;
-    ubo_data.texid[0] = -1;
-    ubo_data.texid[1] = -1;
-    ubo_data.texid[2] = -1;
-    ubo_data.texid[3] = -1;
-    ubo.Update(&ubo_data);
+    ubo.Set(&ubo_data, sizeof(ubo_data));
 }
 
 void CMesh::Draw() {
     if(!visible)return;
     UpdateUBO();
+    Bind();
     pipeline->Bind(commandBuffer, descriptorSets);
 
     // Geometry

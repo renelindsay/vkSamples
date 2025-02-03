@@ -46,7 +46,9 @@ void CBox::Bind() {
     assert(pipeline && "Pipeline not set.");
     CShader& shader = pipeline->shader;
 
-    if(!ubo.size()) ubo.Allocate(sizeof(ubo_data));
+    // Update UBO
+    ubo_data.matrix = worldMatrix;
+    ubo.Set(&ubo_data, sizeof(ubo_data));
     shader.Bind("model", ubo);
 
     if(cubemap) shader.Bind("tex_cubemap", cubemap);
@@ -54,28 +56,24 @@ void CBox::Bind() {
 }
 
 void CBox::Draw() {
-    //Update UBO
-    ubo_data.matrix = worldMatrix;
-    ubo.Update(&ubo_data);
-
-    //VkPipelineLayout pipelineLayout = pipeline->shader.GetPipelineLayout();
-    //vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, *pipeline);
-    //vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, descriptorSets, 0, nullptr);
+    Bind();
     pipeline->Bind(commandBuffer, descriptorSets);
 
     // Geometry
-    vkCmdBindVertexBuffer  (commandBuffer, vbo);
-    vkCmdBindIndexBuffer   (commandBuffer, ibo, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed       (commandBuffer, ibo.Count(), 1, 0, 0, 0);
+    vkCmdBindVertexBuffer(commandBuffer, vbo);
+    vkCmdBindIndexBuffer (commandBuffer, ibo, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed     (commandBuffer, ibo.Count(), 1, 0, 0, 0);
 }
 
 //--------------------------------------------------------------------
 
 void CSkybox::Draw() {
-    float farplane = cam_uniform.proj.m23 / (cam_uniform.proj.m22 + 1.0);
+    //float farplane = cam_uniform.proj.m23 / (cam_uniform.proj.m22 + 1.0);
+    //worldMatrix.Clear();
+    //worldMatrix.Scale(farplane/sqrtf(3));
+    //worldMatrix.Scale(farplane);
+
     vec4 cam_pos = cam_uniform.viewInverse.row.position4;
-    worldMatrix.Clear();
-    worldMatrix.Scale(farplane/sqrtf(3));
     worldMatrix.row.position4 = cam_pos; // center on camera location
     CBox::Draw();
 }

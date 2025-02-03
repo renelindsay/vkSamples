@@ -604,6 +604,12 @@ void UBO::Allocate(VkDeviceSize size, uint32_t count) {
     Data(0, count, blocksize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, &mapped);
 }
 
+void UBO::Set(const void* data, size_t size) {
+    if(!count) Allocate(size);
+    assert((stride == RoundUp(size, 0x100)) && (count==1));
+    Update(data);
+}
+
 void UBO::Update(const void* data) {
     index = (index + 1) % count;
     Update(data, index);

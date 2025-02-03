@@ -1,8 +1,6 @@
 #ifndef CPIPELINE_H
 #define CPIPELINE_H
 
-#include "vkWindow.h"
-#include "Swapchain.h"
 #include "CRenderpass.h"
 #include "CShader.h"
 

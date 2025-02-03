@@ -18,10 +18,3 @@ void CNode::Remove(){
   _prev=_next=_parent=0;
 }
 //----------------------------------------------------------------
-
-uint CNode::Level() {
-    uint level = 0;
-    CNode* item = this;
-    while(!!item->Parent()) {item = item->Parent(); level++;}
-    return level;
-};

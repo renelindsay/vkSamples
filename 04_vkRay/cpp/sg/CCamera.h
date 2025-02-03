@@ -14,14 +14,8 @@ struct CamUniform {
 class CCamera : public CObject {
     //CamUniform cam_uniform;
   public:
-    UBO cam_ubo;
-
-#ifdef DOUBLE_PRECISION
-    dmat4 proj_matrix;
-#else
-    mat4 proj_matrix;
-#endif
-
+    UBO  cam_ubo;
+    MAT4 proj_matrix;
     uint flags=0;
 
     CCamera(const char* name="camera");

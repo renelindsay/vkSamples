@@ -39,8 +39,6 @@ public:
    CNode* FirstChild(){return _child_first;}
    CNode* Next(){return _next;};
    //-------------------
-
-   uint Level();
 };
 
 #endif

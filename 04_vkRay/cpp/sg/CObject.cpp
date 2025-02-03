@@ -54,12 +54,12 @@ void CObject::Transform_nodes() {
 }
 
 void CObject::Init_nodes() {
-    recurse( [&](CObject& node){ node.Bind(); node.Init(); } );
+    recurse( [&](CObject& node){ node.Init(); } );
 }
 
 void CObject::Draw_nodes(VkCommandBuffer cmd) {
     commandBuffer = cmd;
-    recurse( [&](CObject& node){ node.Bind(); node.Draw(); } );
+    recurse( [&](CObject& node){ node.Draw(); } );
 }
 
 //-------------------------------------------------------------------

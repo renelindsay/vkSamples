@@ -16,7 +16,7 @@ protected:
     UBO ubo;
     VBO vbo;
     IBO ibo;
-
+    void Bind();
 public:
     CPipeline* pipeline=0;
     CvkImage*  cubemap =0;
@@ -24,7 +24,6 @@ public:
 
     CBox(const char* name="box") : CObject(name) { type = ntBOX; hitGroup = 0; }
     void Init();
-    void Bind();
     void Draw();
 };
 

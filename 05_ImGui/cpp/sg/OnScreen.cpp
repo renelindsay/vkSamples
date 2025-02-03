@@ -10,7 +10,6 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
 #ifdef  TWOPASS
     //--- Renderpass ---
     VkFormat present_fmt = gpu.FindSurfaceFormat(surface,{VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB});
-    //present_fmt = VK_FORMAT_B8G8R8A8_UNORM;
     VkFormat color_fmt = VK_FORMAT_R32G32B32A32_SFLOAT;
     //VkFormat color_fmt = VK_FORMAT_R16G16B16A16_SFLOAT;
 
@@ -21,12 +20,11 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
     uint32_t depth_att   = renderpass.NewDepthAttachment  (depth_fmt,   VK_SAMPLE_COUNT_4_BIT);
     uint32_t color_att   = renderpass.NewColorAttachment  (color_fmt,   VK_SAMPLE_COUNT_4_BIT);
     uint32_t present_att = renderpass.NewPresentAttachment(present_fmt, VK_SAMPLE_COUNT_1_BIT);
-    subpass0.AddDepthAttachment(depth_att);
     subpass0.AddColorAttachment(color_att);
+    subpass0.AddDepthAttachment(depth_att);
     subpass1.AddInputAttachment(color_att);
     subpass1.AddColorAttachment(present_att);
     renderpass.AddSubpassDependency(0,1);
-    renderpass.Print();
     //-------------------
 #else
     //--- Renderpass ---
@@ -35,14 +33,14 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
     VkFormat depth_fmt = gpu.FindDepthFormat();
     renderpass.Init(device, 1);
     VkClearColorValue clear_col = {0.0f, 0.0f, 0.3f, 1.0f};
+    uint32_t color_att = renderpass.NewPresentAttachment(color_fmt, VK_SAMPLE_COUNT_8_BIT, clear_col);
     uint32_t depth_att = renderpass.NewDepthAttachment  (depth_fmt, VK_SAMPLE_COUNT_8_BIT);
-    uint32_t prest_att = renderpass.NewPresentAttachment(color_fmt, VK_SAMPLE_COUNT_8_BIT, clear_col);
     auto& subpass0 = renderpass.subpasses[0];
+    subpass0.AddColorAttachment(color_att);
     subpass0.AddDepthAttachment(depth_att);
-    subpass0.AddColorAttachment(prest_att);
-    renderpass.Print();
     //-------------------
 #endif
+    renderpass.Print();
 
     //--- Swapchain ---
     swapchain.Init(renderpass, &present_queue, &graphics_queue);
@@ -62,6 +60,8 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
     sky_pipeline.shader.MaxDescriptorSets(3);
     sky_pipeline.shader.LoadVertShader("shaders/spirv/sky_vert.spv");
     sky_pipeline.shader.LoadFragShader("shaders/spirv/sky_frag.spv");
+    sky_pipeline.depthStencilState.depthWriteEnable = VK_FALSE;          // Skybox does not modify depth
+    sky_pipeline.rasterizer.depthClampEnable = VK_TRUE;                  // Dont clip skybox on farplane
     sky_pipeline.CreateGraphicsPipeline();
     //-----------------
 
@@ -72,8 +72,6 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
     pipeline_sub1.shader.MaxDescriptorSets(4);
     pipeline_sub1.shader.LoadVertShader("shaders/spirv/sub1_vert.spv");
     pipeline_sub1.shader.LoadFragShader("shaders/spirv/sub1_frag.spv");
-    //CvkImage& attachment = swapchain.att_images[1];  // color attachment
-    //pipeline_sub1.shader.Bind("inputColor", attachment);
     pipeline_sub1.CreateGraphicsPipeline();
     //-------------------
 #endif

@@ -1,5 +1,4 @@
 #include "Mesh.h"
-#include <array>
 
 #undef repeat
 #undef forXY
@@ -12,38 +11,35 @@ void CMesh::Init() {}
 void CMesh::Bind() {
     assert(pipeline && "Pipeline not set.");
     CShader& shader = pipeline->shader;
-    if(!ubo.size()) ubo.Allocate(sizeof(ubo_data));
     shader.Bind("model", ubo);
     //material.Bind(shader);
     shader.Bind("tex_albedo",   material.texture.albedo);
     shader.Bind("tex_emission", material.texture.emission);
     shader.Bind("tex_normal",   material.texture.normal);
     shader.Bind("tex_orm",      material.texture.orm);
-    if(!!cubemap) shader.Bind("tex_cubemap", cubemap);
+    if(cubemap) shader.Bind("tex_cubemap", cubemap);
     shader.UpdateDescriptorSets(descriptorSets);
 }
 
 void CMesh::UpdateUBO() {  // (does NOT update textures)
-    //if(!ubo.size()) ubo.Allocate(sizeof(ubo_data));
-    ubo_data.matrix  = worldMatrix;
+    ubo_data.matrix   = worldMatrix;
     ubo_data.color[0] = material.color.albedo;
     ubo_data.color[1] = material.color.emission;
     ubo_data.color[2] = material.color.normal;
     ubo_data.color[3] = material.color.orm;
-    ubo.Update(&ubo_data);
+    ubo.Set(&ubo_data, sizeof(ubo_data));
 }
 
 void CMesh::Draw() {
     if(!visible)return;
     UpdateUBO();
+    Bind();
     pipeline->Bind(commandBuffer, descriptorSets);
 
     // Geometry
-    VkBuffer vertexBuffers[] = {vbo};
-    VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers (commandBuffer, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer   (commandBuffer, ibo, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdDrawIndexed       (commandBuffer, ibo.Count(), 1, 0, 0, 0);
+    vkCmdBindVertexBuffer(commandBuffer, vbo);
+    vkCmdBindIndexBuffer (commandBuffer, ibo, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed     (commandBuffer, ibo.Count(), 1, 0, 0, 0);
 }
 
 void CMesh::AddToBLAS(VKRay& rt) {

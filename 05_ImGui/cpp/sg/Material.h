@@ -2,9 +2,6 @@
 #define MATERIAL_H
 
 #include <string>
-#include <vector>
-#include "CImage.h"
-#include "Buffers.h"
 #include "CShader.h"
 
 //---- CPU side material ----
@@ -26,7 +23,7 @@ struct Material {
         //CvkImage*& operator[](int i){return ((CvkImage**)this)[i];};
     } texture;
 
-    void Bind(CShader& shader);
+    void Bind(CShader& shader);   // not used
 };
 //---------------------------
 

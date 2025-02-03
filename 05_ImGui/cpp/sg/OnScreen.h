@@ -8,17 +8,15 @@
 #include "DearImGui.h"
 
 class OnScreen {
-    //CRenderpass renderpass;
+    CRenderpass renderpass;
     CPipeline   pbr_pipeline;
     CPipeline   sky_pipeline;
     CPipeline   pipeline_sub1;
-    VkDescriptorSets  sub1_DS;
-
-public:
-    DearImGui im;
-    CRenderpass renderpass;
-    Swapchain swapchain;
+    VkDescriptorSets sub1_DS;
     CCamera*  camera = 0;
+public:
+    Swapchain swapchain;
+    DearImGui im;
 
     void Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR surface);
     void Bind(CCamera& camera);

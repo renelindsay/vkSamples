@@ -23,7 +23,6 @@
 #ifndef FBO_H
 #define FBO_H
 
-//#include "vkWindow.h"
 #include "CDevices.h"
 #include "CRenderpass.h"
 #include "Buffers.h"

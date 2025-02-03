@@ -1,7 +1,6 @@
 // * Copyright (C) 2017 by Rene Lindsay
 
 #include "Swapchain.h"
-//#include "VkFormats.h"
 
 //--------------------------Swapchain---------------------------
 Swapchain::Swapchain(CRenderpass& renderpass, const CQueue* present_queue, const CQueue* graphics_queue) {
@@ -9,13 +8,7 @@ Swapchain::Swapchain(CRenderpass& renderpass, const CQueue* present_queue, const
 }
 
 void Swapchain::Init(CRenderpass& renderpass, const CQueue* present_queue, const CQueue* graphics_queue) {
-    //-- Check color attachment count --
-    //int32_t color_cnt = (int32_t)renderpass.attachments.size();
-    //if(renderpass.depth_format != VK_FORMAT_UNDEFINED) color_cnt -=1;
-    //ASSERT(color_cnt == 1, "Swapchain may only have 1 color attachment. For offscreen rendering with MRT, use FBO instead.\n");
-    //----------------------------------
-
-    ASSERT(!this->renderpass, "Renderpass already selected.");
+    ASSERT(!this->renderpass, "Renderpass already selected.\n");
     this->renderpass = &renderpass;
     if(!graphics_queue) graphics_queue = present_queue;
     Init(present_queue, graphics_queue);

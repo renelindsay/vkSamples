@@ -5,11 +5,17 @@
 #include <functional>
 #include "matrix.h"
 #include "CNode.h"
-#include "Buffers.h"
 #include "CPipeline.h"
 #include "vkray.h"
 
 #define DOUBLE_PRECISION
+
+#ifdef DOUBLE_PRECISION
+    typedef dmat4 MAT4;
+#else
+    typedef mat4 MAT4;
+#endif
+
 
 static const char* ntStr[] { "Node", "Camera", "Light", "Mesh", "Quad", "Cube", "Sphere", "Shape", "glTF", "Box", "Skybox", "DEM"};
              enum NodeType { ntNODE, ntCAMERA, ntLIGHT, ntMESH, ntQUAD, ntCUBE, ntSPHERE, ntSHAPE, ntGLTF, ntBOX, ntSKYBOX, ntDEM};
@@ -26,14 +32,8 @@ struct CamUniform {
 
 class CObject : public CNode {
 public:
-#ifdef DOUBLE_PRECISION
-    dmat4 matrix;
-    dmat4 worldMatrix;
-#else
-    mat4 matrix;
-    mat4 worldMatrix;
-#endif
-
+    MAT4 matrix;            // Local Transform matrix, relative to parent
+    MAT4 worldMatrix;       // World matrix of this object (derived from matrix)
     NodeType type = ntNODE;
     std::string name = "";
     const char* typeStr() { return ntStr[type]; }
@@ -46,14 +46,13 @@ public:
     CObject() {}
     CObject(const char* name) : name(name) {}
 
-    virtual void Init(){};
-    virtual void Bind(){};
+    virtual void Init(){}
     virtual void Transform();
-    virtual void Draw(){};
-
+    virtual void Draw(){}
+    //--- RAYTRACE ---
     virtual void AddToBLAS(VKRay& rt){};
     virtual void UpdateBLAS(VKRay& rt){};
-
+    //----------------
     virtual CObject* Parent() { return (CObject*)(_parent); }
     CObject& GetRoot() { CObject* obj = this;  while(obj->Parent()) obj = obj->Parent(); return *obj; }
 
@@ -63,7 +62,7 @@ public:
 
     CObject* Find(const std::string& name);        // find child node by name
     std::vector<CObject*> FindAll(NodeType type);  // find all nodes of given type
-    std::vector<CObject*> GetRenderList();
+    std::vector<CObject*> GetRenderList();         // list nodes to render
     //-------------
 
     //-- Recursive node functions --

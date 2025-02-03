@@ -1,4 +1,6 @@
 #include "OffScreen.h"
+#include "CSkybox.h"
+#include "Mesh.h"
 
 void OffScreen::Init(CQueue& queue) {
     //--- Renderpass ---
@@ -11,6 +13,7 @@ void OffScreen::Init(CQueue& queue) {
     auto& subpass0 = renderpass.subpasses[0];
     subpass0.AddColorAttachment(color_att);
     subpass0.AddDepthAttachment(depth_att);
+    renderpass.Print();
     //------------------
 
     //--- FBO ---
@@ -29,8 +32,8 @@ void OffScreen::Init(CQueue& queue) {
     sky_pipeline.shader.MaxDescriptorSets(3);
     sky_pipeline.shader.LoadVertShader("shaders/spirv/sky_vert.spv");
     sky_pipeline.shader.LoadFragShader("shaders/spirv/sky_frag.spv");
-    sky_pipeline.depthStencilState.depthWriteEnable = VK_FALSE;
-    sky_pipeline.rasterizer.depthClampEnable = VK_TRUE;
+    sky_pipeline.depthStencilState.depthWriteEnable = VK_FALSE;          // Skybox does not modify depth
+    sky_pipeline.rasterizer.depthClampEnable = VK_TRUE;                  // Dont clip skybox on farplane
     sky_pipeline.CreateGraphicsPipeline();
     //-----------------
 }

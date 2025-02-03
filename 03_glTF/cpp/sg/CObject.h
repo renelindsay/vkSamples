@@ -5,8 +5,17 @@
 #include <functional>
 #include "matrix.h"
 #include "CNode.h"
-#include "Buffers.h"
 #include "CPipeline.h"
+#include "vkray.h"
+
+#define DOUBLE_PRECISION
+
+#ifdef DOUBLE_PRECISION
+    typedef dmat4 MAT4;
+#else
+    typedef mat4 MAT4;
+#endif
+
 
 static const char* ntStr[] { "Node", "Camera", "Light", "Mesh", "Quad", "Cube", "Sphere", "Shape", "glTF", "Box", "Skybox", "DEM"};
              enum NodeType { ntNODE, ntCAMERA, ntLIGHT, ntMESH, ntQUAD, ntCUBE, ntSPHERE, ntSHAPE, ntGLTF, ntBOX, ntSKYBOX, ntDEM};
@@ -21,7 +30,8 @@ struct CamUniform {
 
 class CObject : public CNode {
 public:
-    mat4 worldMatrix;             // World matrix of this object (derived from matrix)
+    MAT4 matrix;            // Local Transform matrix, relative to parent
+    MAT4 worldMatrix;       // World matrix of this object (derived from matrix)
     NodeType type = ntNODE;
     std::string name = "";
     const char* typeStr() { return ntStr[type]; }
@@ -33,10 +43,8 @@ public:
 
     CObject() {}
     CObject(const char* name) : name(name) {}
-    mat4 matrix;                  // Transform matrix, relative to parent
 
     virtual void Init(){}
-    virtual void Bind(){}
     virtual void Transform();
     virtual void Draw(){}
 

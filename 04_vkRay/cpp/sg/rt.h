@@ -2,12 +2,9 @@
 #define RT_H
 
 #include "CDevices.h"
-//#include "CRenderpass.h"
 #include "Swapchain.h"
 #include "CObject.h"
 #include "CCamera.h"
-//#include "CSkybox.h"
-//#include "glTF.h"
 #include "Light.h"
 
 class RT {
@@ -15,14 +12,6 @@ class RT {
 public:
     VKRay vkray;
     std::vector<CObject*> meshList;
-/*
-    //--------------------
-    rtImageList imageList;
-    void AddMaterial(Material& mat, uboData& ubo){
-        imageList.AddMaterial(mat, ubo);
-    }
-    //--------------------
-*/
 
     void Init(CQueue& queue, CCamera& camera, VkImageView target) {
         vkray.Init(queue);

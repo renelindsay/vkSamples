@@ -1,4 +1,6 @@
 #include "OnScreen.h"
+#include "CSkybox.h"
+#include "Mesh.h"
 
 void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR surface) {
     auto& gpu   = graphics_queue.gpu;
@@ -24,12 +26,12 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
     //-------------------
 #else
     //--- Renderpass ---
-    //VkFormat color_fmt = gpu->FindSurfaceFormat(surface,{VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM});   // linear
+    //VkFormat color_fmt = gpu.FindSurfaceFormat(surface,{VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM});   // linear
     VkFormat color_fmt = gpu.FindSurfaceFormat(surface,{VK_FORMAT_R8G8B8A8_SRGB,  VK_FORMAT_B8G8R8A8_SRGB});    // gamma (brighter)
     VkFormat depth_fmt = gpu.FindDepthFormat();
     renderpass.Init(device, 1);
-    uint32_t depth_att = renderpass.NewDepthAttachment(depth_fmt);
     uint32_t color_att = renderpass.NewPresentAttachment(color_fmt);
+    uint32_t depth_att = renderpass.NewDepthAttachment(depth_fmt);
     auto& subpass0 = renderpass.subpasses[0];
     subpass0.AddColorAttachment(color_att);
     subpass0.AddDepthAttachment(depth_att);
@@ -55,20 +57,18 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
     sky_pipeline.shader.MaxDescriptorSets(3);
     sky_pipeline.shader.LoadVertShader("shaders/spirv/sky_vert.spv");
     sky_pipeline.shader.LoadFragShader("shaders/spirv/sky_frag.spv");
-    sky_pipeline.depthStencilState.depthWriteEnable = VK_FALSE;
-    sky_pipeline.rasterizer.depthClampEnable = VK_TRUE;
+    sky_pipeline.depthStencilState.depthWriteEnable = VK_FALSE;          // Skybox does not modify depth
+    sky_pipeline.rasterizer.depthClampEnable = VK_TRUE;                  // Dont clip skybox on farplane
     sky_pipeline.CreateGraphicsPipeline();
     //-----------------
 
 #ifdef TWOPASS
     //---- Subpass 1 ----
     printf("\nSubpass 1:\n");
-    //CvkImage& attachment = swapchain.attachments[0];  // color attachment
     pipeline_sub1.Init(renderpass, 1);
     pipeline_sub1.shader.MaxDescriptorSets(4);
-    pipeline_sub1.shader.LoadVertShader("./shaders/spirv/sub1_vert.spv");
-    pipeline_sub1.shader.LoadFragShader("./shaders/spirv/sub1_frag.spv");
-    //pipeline_sub1.shader.Bind("inputColor", attachment);
+    pipeline_sub1.shader.LoadVertShader("shaders/spirv/sub1_vert.spv");
+    pipeline_sub1.shader.LoadFragShader("shaders/spirv/sub1_frag.spv");
     pipeline_sub1.CreateGraphicsPipeline();
     //-------------------
 #endif
@@ -88,15 +88,6 @@ void OnScreen::Bind(CCamera& camera) {
 }
 
 void OnScreen::Render() {
-#ifdef TWOPASS
-        if(swapchain.Resized()) {
-          //  CvkImage& attachment = swapchain.att_images[0];
-          //  pipeline_sub1.shader.Bind("inputColor", attachment);
-          //  pipeline_sub1.shader.UpdateDescriptorSets(sub1_DS);
-            //rt.SetRenderTarget(attachment.view);
-        }
-#endif
-
     CObject& root = camera->GetRoot();
     root.Transform_nodes();
 
@@ -117,12 +108,9 @@ void OnScreen::Render() {
         camera->Apply(fence);
         root.Draw_nodes(cmd);
 #ifdef TWOPASS
-            vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
-            //VkPipelineLayout sub1_PL = pipeline_sub1.shader.GetPipelineLayout();
-            //vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_sub1);
-            //vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, sub1_PL, 0, 1, &sub1_DS, 0, nullptr);
-            pipeline_sub1.Bind(cmd, sub1_DS);
-            vkCmdDraw(cmd, 3, 1, 0, 0);
+        vkCmdNextSubpass(cmd, VK_SUBPASS_CONTENTS_INLINE);
+        pipeline_sub1.Bind(cmd, sub1_DS);
+        vkCmdDraw(cmd, 3, 1, 0, 0);
 #endif
 
     swapchain.EndFrame();

@@ -4,7 +4,6 @@
 #include "CShader.h"
 #include "VkFormats.h"
 #include "Buffers.h"
-#include <iostream>
 #include <algorithm>
 
 CvkImage* CShader::imgWhite = 0;
@@ -370,8 +369,8 @@ void CShader::Bind(std::string name, UBO& ubo) {
 }
 
 void CShader::Bind(std::string name, UBO& ubo, uint32_t index) {
-    ASSERT(ubo.size()>0    , "UBO has not been initialized.\n");
-    ASSERT(index<ubo.size(), "UBO array index out of bounds.\n");
+    ASSERT(ubo.size()>0     , "UBO has not been initialized.\n");
+    ASSERT(index<ubo.Count(), "UBO array index out of bounds.\n");
     for(auto& item : dsInfo) {
         if(item.name == name) {
             //LOGI("Bind UBO   to shader var: \"%s\"\n", name.c_str())

@@ -7,7 +7,7 @@
 #include <string>
 #include "vulkan/vulkan.h"
 
-#include "Logging.h"
+//#include "Logging.h"
 #include "CImage.h"
 
 //#define EXTENDED_FORMATS

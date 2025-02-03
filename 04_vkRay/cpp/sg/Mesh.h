@@ -11,6 +11,7 @@
 class CMesh : public CObject {
     uboData ubo_data;
     VkDescriptorSets  descriptorSets;
+    void Bind();
     void UpdateUBO();
     int blasInx = -1;
 
@@ -24,13 +25,12 @@ public:
 
     CMesh(const char* name="mesh") : CObject(name) { type = ntMESH; hitGroup = 1; }
     void Init();
-    void Bind();
     void Draw();
 
-    //--- RAYTRACER ---
+    //--- RAYTRACE ---
     void AddToBLAS (VKRay& rt);
     void UpdateBLAS(VKRay& rt);
-    //-----------------
+    //----------------
 };
 //------------------------------------------------------------
 //----------------------------QUAD----------------------------
