@@ -387,7 +387,7 @@ struct quat { //(UNTESTED)
     vec3& vec() const {return *(vec3*)&x;}    // xyz as vec3
     quat() : w(1), x(0), y(0), z(0) {}  // identity
     quat(float w, float x, float y, float z) : w(w), x(x), y(y), z(z) {}
-    quat(vec3 axis, float angle) { float a=angle*toRad/2.f; vec()=axis*sinf(a); w=cosf(a); }  // axis-angle to quat
+    quat(vec3 axis, float angle) { float a=angle*toRad/2.f; vec()=axis.normalized()*sinf(a); w=cosf(a); }  // axis-angle to quat
     quat Inverted() const {return quat(w, -x, -y, -z); }
 
     quat operator*(const quat& q) const {  // multiply quaternions, to combine rotations

@@ -4,12 +4,11 @@
 
 void OffScreen::Init(CQueue& queue) {
     //--- Renderpass ---
-    //VkFormat color_fmt = VK_FORMAT_R8G8B8A8_UNORM;
-    VkFormat color_fmt = VK_FORMAT_B8G8R8A8_UNORM;
+    VkFormat color_fmt = VK_FORMAT_R8G8B8A8_SRGB;
     VkFormat depth_fmt = queue.gpu.FindDepthFormat();
     renderpass.Init(queue.device, 1);
-    uint32_t depth_att = renderpass.NewDepthAttachment(depth_fmt);
-    uint32_t color_att = renderpass.NewPresentAttachment(color_fmt);
+    uint32_t depth_att = renderpass.NewDepthAttachment  (depth_fmt, samples);
+    uint32_t color_att = renderpass.NewPresentAttachment(color_fmt, samples);
     auto& subpass0 = renderpass.subpasses[0];
     subpass0.AddColorAttachment(color_att);
     subpass0.AddDepthAttachment(depth_att);

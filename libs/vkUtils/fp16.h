@@ -9,7 +9,7 @@
 #ifndef FP16_H
 #define FP16_H
 
-#include <stdio.h>
+//#include <stdio.h>
 #include <stdint.h>
 #include "matrix.h"
 

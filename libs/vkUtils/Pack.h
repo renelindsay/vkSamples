@@ -3,11 +3,11 @@
 
 //#include "CImage.h"
 
-#include <stdint.h>
+//#include <stdint.h>
 #include <stdio.h>
 #include <malloc.h>
 #include "matrix.h"
-#include "fp16.h"
+//#include "fp16.h"
 
 #undef MOVE_SEMANTICS
 //------------------------------------------------------------

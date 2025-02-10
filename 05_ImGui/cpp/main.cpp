@@ -5,12 +5,6 @@
 #include "OnScreen.h"
 #include "OffScreen.h"
 #include "Scene.h"
-
-//#include "imgui.h"
-//#include "imgui_stdlib.h"
-//#include "imgui_impl_vkWindow.h"
-//#include "imgui_impl_vulkan.h"
-
 #include "DearImGui.h"
 
 //-- EVENT HANDLERS --
@@ -161,9 +155,6 @@ int main(int argc, char *argv[]) {
     Scene scene;
     scene.Init();
     window.scene = &scene;
-    //scene.root.Init_nodes();
-    //scene.root.Print();
-
 
     //----Onscreen----
     OnScreen onscreen;
@@ -191,7 +182,7 @@ int main(int argc, char *argv[]) {
     //==============================================
 
     //--- Main Loop ---
-    while (window.ProcessEvents()) {    
+    while (window.ProcessEvents()) {
         window.im->NewFrame();
         //window.im->HandleMouse();
 

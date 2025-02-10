@@ -14,6 +14,7 @@ class OnScreen {
     VkDescriptorSets sub1_DS;
     CCamera*  camera = 0;
 public:
+    VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
     Swapchain swapchain;
     void Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR surface);
     void Bind(CCamera& camera);

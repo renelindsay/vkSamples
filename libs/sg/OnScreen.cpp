@@ -10,13 +10,15 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
 #ifdef  TWOPASS
     //--- Renderpass ---
     VkFormat present_fmt = gpu.FindSurfaceFormat(surface,{VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB});
-    VkFormat color_fmt = VK_FORMAT_R32G32B32A32_SFLOAT;
+    //VkFormat color_fmt = VK_FORMAT_R32G32B32A32_SFLOAT;
+    VkFormat color_fmt = VK_FORMAT_R16G16B16A16_SFLOAT;
+
     VkFormat depth_fmt = gpu.FindDepthFormat();
     renderpass.Init(device, 2);  // 2 subpasses
     auto& subpass0 = renderpass.subpasses[0];
     auto& subpass1 = renderpass.subpasses[1];
-    uint32_t depth_att   = renderpass.NewDepthAttachment  (depth_fmt);
-    uint32_t color_att   = renderpass.NewColorAttachment  (color_fmt);
+    uint32_t depth_att   = renderpass.NewDepthAttachment  (depth_fmt, samples);
+    uint32_t color_att   = renderpass.NewColorAttachment  (color_fmt, samples);
     uint32_t present_att = renderpass.NewPresentAttachment(present_fmt);
     subpass0.AddColorAttachment(color_att);
     subpass0.AddDepthAttachment(depth_att);
@@ -30,8 +32,9 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
     VkFormat color_fmt = gpu.FindSurfaceFormat(surface,{VK_FORMAT_R8G8B8A8_SRGB,  VK_FORMAT_B8G8R8A8_SRGB});    // gamma (brighter)
     VkFormat depth_fmt = gpu.FindDepthFormat();
     renderpass.Init(device, 1);
-    uint32_t color_att = renderpass.NewPresentAttachment(color_fmt);
-    uint32_t depth_att = renderpass.NewDepthAttachment(depth_fmt);
+    VkClearColorValue clear_col = {0.0f, 0.0f, 0.0f, 1.0f};
+    uint32_t color_att = renderpass.NewPresentAttachment(color_fmt, samples, clear_col);
+    uint32_t depth_att = renderpass.NewDepthAttachment  (depth_fmt, samples);
     auto& subpass0 = renderpass.subpasses[0];
     subpass0.AddColorAttachment(color_att);
     subpass0.AddDepthAttachment(depth_att);

@@ -131,7 +131,6 @@ int main(int argc, char *argv[]) {
     //gpu->enable_features_12.bufferDeviceAddress = VK_TRUE;
     gpu->extensions.Add("VK_KHR_buffer_device_address");
 
-
     //--- Device and Queues ---
     CDevice device(*gpu);                                                      // Create Logical device on selected gpu
     CQueue* present_queue  = device.AddQueue(VK_QUEUE_GRAPHICS_BIT, surface);  // Create a graphics + present-queue
@@ -153,9 +152,6 @@ int main(int argc, char *argv[]) {
     Scene scene;
     scene.Init();
     window.scene = &scene;
-    //scene.root.Init_nodes();
-    //scene.root.Print();
-
 
     //----Onscreen----
     OnScreen onscreen;

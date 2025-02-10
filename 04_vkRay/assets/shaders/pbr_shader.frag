@@ -71,6 +71,7 @@ void main() {
     vec4 metal     = mix(albedo, white, fresnel) * specular;
     vec4 non_metal = mix(albedo * diffuse, specular, kS);
     outColor       = mix(non_metal, metal, metalness) * AO + emission;
+    outColor.a = 1.0f;
     
     // FLAGS
     if(flags == 1) outColor = diffuse;                         // diffuse light from surroundings

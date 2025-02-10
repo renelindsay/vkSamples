@@ -319,6 +319,21 @@ CImage CvkImage::Read() {  //Read image from GPU.
         img = img32f.toLDR();
         LOGV("Reading CImage32f as CImage. (Converting to sRGB)\n");
     } else
+    if(format == VK_FORMAT_R16G16B16A16_SFLOAT) {
+        int w = extent.width;
+        int h = extent.height;
+        RGBA16f* img16f = (RGBA16f*)malloc(w * h * 8);
+        allocator->ReadImage(image, layout, extent, format, img16f);
+        for(int y=0; y<h; ++y) {
+            RGBA16f* in_line = &img16f[y*w];
+            RGBA* out_line = &img[y*w];
+            for(int x=0; x<w; ++x) {
+                RGBA32f pix32f = in_line[x];
+                out_line[x] = pix32f;
+            }
+        }
+        free(img16f);
+    } else
     if(fmt.size == 4) {
         if(fmt.type==UNORM) img.colorspace = csUNORM;
         if(fmt.type==SRGB)  img.colorspace = csSRGB;

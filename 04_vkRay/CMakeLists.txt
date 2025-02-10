@@ -14,18 +14,18 @@ endif()
 #============================== LIBS =============================
 add_subdirectory(../libs/Window  Window)
 add_subdirectory(../libs/vkUtils vkUtils)
+add_subdirectory(../libs/sg      sg)
 #=================================================================
 #============================= SOURCE ============================
 include_directories (cpp)
-include_directories (cpp/sg)
-aux_source_directory(cpp    SRC_LIST)
-aux_source_directory(cpp/sg SRC_LIST)
+aux_source_directory(cpp SRC_LIST)
 #=================================================================
 #==============================LINUX==============================
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_executable(${PROJECT_NAME} ${SRC_LIST})
     target_link_libraries(${PROJECT_NAME} Window)
     target_link_libraries(${PROJECT_NAME} vkUtils)
+    target_link_libraries(${PROJECT_NAME} sg) 
 
     #Build static libstdc++
     option(STATIC_LINK_LIBSTDCPP "Required for NVidia Nsight" OFF)
@@ -42,14 +42,16 @@ if(WIN32)
     add_executable(${PROJECT_NAME} ${SRC_LIST})
     target_link_libraries(${PROJECT_NAME} Window)
     target_link_libraries(${PROJECT_NAME} vkUtils)
+    target_link_libraries(${PROJECT_NAME} sg)
 endif()
 #=================================================================
 #=============================ANDROID=============================
 if(ANDROID)
     message("Platform = ${ANDROID_PLATFORM}")
     add_library(native SHARED ${SRC_LIST})
-    target_link_libraries(native log android)
+    #target_link_libraries(native log android)
     target_link_libraries(native Window)
     target_link_libraries(native vkUtils)
+    target_link_libraries(native sg)
 endif()
 #=================================================================

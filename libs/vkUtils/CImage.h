@@ -82,6 +82,7 @@ struct RGBA32f {
     RGBA32f(float r, float g, float b, float a=1);
     RGBA32f(RGBA pix);                   // converts sRGB to linear
     RGBA32f(vec4 col);
+    RGBA32f(RGBA16f pix);
     operator RGBA () const;              // converts linear to sRGB
     RGBA32f& operator += (const RGBA32f& c) { R+=c.R;  G+=c.G;  B+=c.B; A=1; return *this; }
     RGBA32f& operator -= (const RGBA32f& c) { R-=c.R;  G-=c.G;  B-=c.B; A=1; return *this; }
@@ -140,6 +141,7 @@ public:
     void Copy(const void* addr, int bpp=4, bool Vflip=false);  //Copy&convert from 1/2/3/4 Bpp formats(external) to RGBA(local)
     operator RGBA* () const {return (RGBA*)buf;}
     operator uint* () const {return (uint*)buf;}
+    RGBA& operator[](int x) {return (RGBA&)*((RGBA*)buf+x);}
 
     CImageBase asGrayHQ(ColorSpace cs);                      // higher quality
     CImageBase asGray() {return Pack(*this, GRAY8   ); }  // faster
@@ -165,7 +167,8 @@ public:
     CImage32f(int width, int height){ SetSize(width, height); }
     void SetSize(int width, int height) {CImageBase::SetSize(width, height, 128); format = R32G32B32A32;}
     RGBA32f* Buffer() const { return (RGBA32f*)buf; }
-
+    operator RGBA32f* () const {return (RGBA32f*)buf;}
+    RGBA32f& operator[](int x) {return (RGBA32f&)*((RGBA32f*)buf+x);}
     RGBA32f& Pixel(int x, int y);
     RGBA32f UV(float u, float v);
 

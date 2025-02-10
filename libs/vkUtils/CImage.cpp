@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
-#include <fstream> // for file_exists
+//#include <fstream> // for file_exists
 
 #undef repeat
 #define repeat(COUNT) for(uint32_t i = 0; i < (COUNT); ++i)
@@ -72,6 +72,7 @@ RGBA RGBA::lerp(RGBA c, float f) {
 //RGBA32f::RGBA32f() : R(0), G(0), B(0), A(1) {}
 RGBA32f::RGBA32f(float r, float g, float b, float a) : R(r), G(g), B(b), A(a) {}
 RGBA32f::RGBA32f(vec4 v) : R(v.x), G(v.y), B(v.z), A(v.w) {}
+RGBA32f::RGBA32f(RGBA16f pix) : R(pix.R), G(pix.G), B(pix.B), A(pix.A) {}
 void RGBA32f::set(float r, float g, float b, float a) { R=r; G=g; B=b; A=a;}
 
 #define USE_LUT

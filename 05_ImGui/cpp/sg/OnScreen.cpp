@@ -33,8 +33,8 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
     VkFormat depth_fmt = gpu.FindDepthFormat();
     renderpass.Init(device, 1);
     VkClearColorValue clear_col = {0.0f, 0.0f, 0.3f, 1.0f};
-    uint32_t color_att = renderpass.NewPresentAttachment(color_fmt, VK_SAMPLE_COUNT_8_BIT, clear_col);
-    uint32_t depth_att = renderpass.NewDepthAttachment  (depth_fmt, VK_SAMPLE_COUNT_8_BIT);
+    uint32_t color_att = renderpass.NewPresentAttachment(color_fmt, VK_SAMPLE_COUNT_4_BIT, clear_col);
+    uint32_t depth_att = renderpass.NewDepthAttachment  (depth_fmt, VK_SAMPLE_COUNT_4_BIT);
     auto& subpass0 = renderpass.subpasses[0];
     subpass0.AddColorAttachment(color_att);
     subpass0.AddDepthAttachment(depth_att);

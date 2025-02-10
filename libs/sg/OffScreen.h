@@ -12,6 +12,7 @@ class OffScreen {
     CPipeline   sky_pipeline;
     CCamera*    camera = 0;
 public:
+    VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
     FBO  fbo;
     void Init(CQueue& queue);
     void Bind(CCamera& camera);

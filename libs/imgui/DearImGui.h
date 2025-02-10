@@ -13,10 +13,10 @@
 class DearImGui {
     VkDevice device;
     VkDescriptorPool descriptorPool = 0;
-
 public:
     VkInstance instance;
     vkWindow* window;
+    VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
     bool isActive = false;
 
     DearImGui(){}
@@ -59,7 +59,7 @@ public:
         init_info.RenderPass     = renderpass;
         init_info.MinImageCount  = swapchain.surface_caps.minImageCount;  //2
         init_info.ImageCount     = swapchain.info.minImageCount;          //3
-        init_info.MSAASamples    = VK_SAMPLE_COUNT_1_BIT;
+        init_info.MSAASamples    = samples;
         ImGui_ImplVulkan_Init(&init_info);
         ImGui_ImplVulkan_CreateFontsTexture();
         //-----------
