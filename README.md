@@ -77,7 +77,6 @@ Renders a glTF model, with imgui menu overlay.
 Imgui menu responds to mouse events.  
 Background mouse events adjust camera angle and zoom.  
 This is just 03_glTF, with an ImGui overlay added.  
-(WIP:  Currently fails on Android)  
 
 ![05_ImGui](05_ImGui/assets/Screenshot_Linux.png)
 ---

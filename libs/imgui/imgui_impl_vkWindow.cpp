@@ -5,10 +5,6 @@
 #include "vkWindow.h"
 #include "imgui_impl_vkWindow.h"
 #include "imgui.h"
-
-#include <stdio.h>
-#include <time.h>
-//#include <ratio>
 #include <chrono>
 
 float min(float a, float b) { return a>b?b:a; }

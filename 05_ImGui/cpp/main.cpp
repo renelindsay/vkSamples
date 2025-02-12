@@ -62,6 +62,7 @@ class MainWindow : public vkWindow {
     }
     //  touch screen
     void OnTouchEvent(eAction action, float x, float y, uint8_t id) {
+        if(im->OnTouchEvent(action,x,y,id)) return;
         const char *type[] {"up  ", "down", "move"};
         printf("Touch: %s %f x %f id:%d\n", type[action], x, y, id); 
 
@@ -187,14 +188,17 @@ int main(int argc, char *argv[]) {
         //window.im->HandleMouse();
 
         static bool show_demo_window = true;
-        if (show_demo_window) ImGui::ShowDemoWindow(&show_demo_window);
-
+        if (show_demo_window) {
+            ImGui::ShowDemoWindow(&show_demo_window);
+            ImGuiWindow* demoWindow = ImGui::FindWindowByName("Dear ImGui Demo");
+            if (demoWindow) demoWindow->Pos = ImVec2(10, 10);
+        }
         onscreen.Bind(scene.camera);
         onscreen.Render();
 
         if(window.GetKeyState(KEY_S)) {  // 'S': save screenshot
             CvkImage& attachment = onscreen.swapchain.att_images[1];
-            attachment.Read32f().toLDR().Save("frame.png");
+            attachment.Read().Save("frame.png");
         }
 
         if(window.GetKeyState(KEY_F)) {  //'F': save image from FBO

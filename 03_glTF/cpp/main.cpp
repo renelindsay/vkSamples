@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
 
         if(window.GetKeyState(KEY_S)) {  // 'S': save screenshot
             CvkImage& attachment = onscreen.swapchain.att_images[1];
-            attachment.Read32f().toLDR().Save("frame.png");
+            attachment.Read().Save("frame.png");
         }
 
         if(window.GetKeyState(KEY_F)) {  //'F': save image from FBO

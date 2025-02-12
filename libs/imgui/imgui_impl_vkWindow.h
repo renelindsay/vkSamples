@@ -15,12 +15,8 @@
 #pragma once
 
 //---------------------------------
-#include <string.h>  //for memset
 #include <vexel.h>
-#include <vulkan/vulkan.h>
 #include "imgui.h"
-#include <time.h>       // clock
-#include <sys/timeb.h>  // timeb
 //---------------------------------
 
 class vkWindow;

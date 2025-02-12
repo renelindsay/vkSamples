@@ -9,6 +9,7 @@
 #include "imgui.h"
 #include "imgui_impl_vkWindow.h"
 #include "imgui_impl_vulkan.h"
+#include "imgui_internal.h"
 
 class DearImGui {
     VkDevice device;
@@ -81,6 +82,17 @@ public:
         ImGui_ImplvkWindow_UpdateMouse(btns, x, y);
         if(btn == 4) ImGui_ImplvkWindow_ScrollWheel(window, 0, 1.f);
         if(btn == 5) ImGui_ImplvkWindow_ScrollWheel(window, 0,-1.f);
+        ImGuiIO& io = ImGui::GetIO();
+        return io.WantCaptureMouse;  // return true if imgui handled the mouse event
+    }
+
+    bool OnTouchEvent(eAction action, float x, float y, uint8_t id) {
+        static uint8_t btns = 0;
+        if(id==0) {
+            if(action==eDOWN) btns = 1;
+            if(action==eUP  ) btns = 0;
+            ImGui_ImplvkWindow_UpdateMouse(btns, x, y);
+        }
         ImGuiIO& io = ImGui::GetIO();
         return io.WantCaptureMouse;  // return true if imgui handled the mouse event
     }

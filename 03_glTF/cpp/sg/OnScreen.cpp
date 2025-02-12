@@ -10,8 +10,8 @@ void OnScreen::Init(CQueue& present_queue, CQueue& graphics_queue, VkSurfaceKHR 
 #ifdef  TWOPASS
     //--- Renderpass ---
     VkFormat present_fmt = gpu.FindSurfaceFormat(surface,{VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_B8G8R8A8_SRGB});
-    VkFormat color_fmt = VK_FORMAT_R32G32B32A32_SFLOAT;
-    //VkFormat color_fmt = VK_FORMAT_R16G16B16A16_SFLOAT;
+    //VkFormat color_fmt = VK_FORMAT_R32G32B32A32_SFLOAT;
+    VkFormat color_fmt = VK_FORMAT_R16G16B16A16_SFLOAT;
 
     VkFormat depth_fmt = gpu.FindDepthFormat();
     renderpass.Init(device, 2);  // 2 subpasses
