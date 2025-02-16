@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.18.1)
 
 project(ImGui VERSION 0.1)
+set(TARGET_NAME ${PROJECT_NAME})
 
 #============================ PROFILER ===========================
 option(ENABLE_PROFILER "Generate gmon.out for gprof" OFF)
@@ -10,7 +11,10 @@ if (ENABLE_PROFILER)
     SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -pg")
 endif()
 #=================================================================
-
+option(ENABLE_IMGUI "Enable ImGui Library" ON)
+if(ENABLE_IMGUI)
+    add_compile_definitions(ENABLE_IMGUI)
+endif()
 #============================== LIBS =============================
 add_subdirectory(../libs/Window  Window)
 add_subdirectory(../libs/vkUtils vkUtils)
@@ -24,10 +28,7 @@ aux_source_directory(cpp/sg SRC_LIST)
 #=================================================================
 #==============================LINUX==============================
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    add_executable(${PROJECT_NAME} ${SRC_LIST})
-    target_link_libraries(${PROJECT_NAME} Window)
-    target_link_libraries(${PROJECT_NAME} vkUtils)
-    target_link_libraries(${PROJECT_NAME} DearImGui)
+    add_executable(${TARGET_NAME} ${SRC_LIST})
 
     #Build static libstdc++
     option(STATIC_LINK_LIBSTDCPP "Required for NVidia Nsight" OFF)
@@ -41,19 +42,23 @@ endif()
 #=============================WINDOWS=============================
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
-    add_executable(${PROJECT_NAME} ${SRC_LIST})
-    target_link_libraries(${PROJECT_NAME} Window)
-    target_link_libraries(${PROJECT_NAME} vkUtils)
-    target_link_libraries(${PROJECT_NAME} DearImGui)
+    add_executable(${TARGET_NAME} ${SRC_LIST})
 endif()
 #=================================================================
 #=============================ANDROID=============================
 if(ANDROID)
-    message("Platform = ${ANDROID_PLATFORM}")
-    add_library(native SHARED ${SRC_LIST})
-    target_link_libraries(native log android)
-    target_link_libraries(native Window)
-    target_link_libraries(native vkUtils)
-    target_link_libraries(native DearImGui)
+    set(TARGET_NAME native)
+    add_library(${TARGET_NAME} SHARED ${SRC_LIST})
 endif()
+#=================================================================
+#===============================ALL===============================
+target_link_libraries(${TARGET_NAME} Window)
+target_link_libraries(${TARGET_NAME} vkUtils)
+
+option(ENABLE_IMGUI "Enable ImGui Library" ON)
+if(ENABLE_IMGUI)
+    add_compile_definitions(ENABLE_IMGUI)
+    target_link_libraries(${TARGET_NAME} DearImGui)
+endif()
+
 #=================================================================

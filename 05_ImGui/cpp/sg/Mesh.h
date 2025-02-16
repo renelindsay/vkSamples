@@ -5,6 +5,7 @@
 #include "CShader.h"
 #include "CObject.h"
 #include "Material.h"
+#include "CPipeline.h"
 
 //struct Vertex {vec3 pos; vec3 nrm; vec2 tc;};
 //----------------------------MESH----------------------------

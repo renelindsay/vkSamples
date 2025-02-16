@@ -96,19 +96,16 @@ bool operator==(const VkExtent2D& lhs, const VkExtent2D& rhs) {
     return lhs.width == rhs.width && lhs.height == rhs.height;
 }
 
-void Swapchain::SetExtent() {  // Fit image extent to window size
+bool Swapchain::SetExtent() {  // Fit image extent to window size
     VKERRCHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &surface_caps));
     VkExtent2D& curr = surface_caps.currentExtent;  // surface extent
     VkExtent2D& ext = info.imageExtent;             // swapchain extent
-    if(ext == curr) return;
+    if (ext==curr) return false;
     //printf("swapchain: w=%d h=%d curr_w=%d curr_h=%d\n", ext.width, ext.height, curr.width, curr.height);
-    ext = curr;
-    auto clamp =[](uint32_t val, uint32_t min, uint32_t max){ return (val < min ? min : val > max ? max : val); };
-    ext.width  = clamp(ext.width,  surface_caps.minImageExtent.width,  surface_caps.maxImageExtent.width);
-    ext.height = clamp(ext.height, surface_caps.minImageExtent.height, surface_caps.maxImageExtent.height);
-    extent = ext;
+    extent = ext = curr;
     resized = true;
-     if (!!swapchain) Apply();
+    if (!!swapchain) Apply();
+    return true;
 }
 
 bool Swapchain::SetFramebufferCount(uint32_t image_count) {  // set number of framebuffers. (2 or 3). Return true on success.
@@ -297,20 +294,22 @@ void Swapchain::Apply() {
 
 FrameBuffer& Swapchain::AcquireNext() {
     ASSERT(!is_acquired, "CSwapchain: Previous swapchain buffer has not yet been presented.\n");
-    SetExtent();  // TODO: Remove?
+    while(SetExtent()){}
 
     // Acquire next image
     uint32_t prev = acquired_index;
     VkSemaphore acquire_semaphore = CurrBuffer().acquire_semaphore;
     VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, acquire_semaphore, VK_NULL_HANDLE, &acquired_index);
     //ShowVkResult(result);
+/*
     // window resized (for Nvidia GPU)
     while(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
         SetExtent();
         acquire_semaphore = CurrBuffer().acquire_semaphore;
         result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, acquire_semaphore, VK_NULL_HANDLE, &acquired_index);
+        ShowVkResult(result);
     }
-
+*/
     FrameBuffer& buf = buffers[acquired_index];
     buf.extent = info.imageExtent;
     vkWaitForFences(device, 1, &buf.fence, VK_TRUE, UINT64_MAX);

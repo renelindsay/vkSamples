@@ -5,7 +5,6 @@
 #include <functional>
 #include "matrix.h"
 #include "CNode.h"
-#include "CPipeline.h"
 #include "vkray.h"
 
 #define DOUBLE_PRECISION

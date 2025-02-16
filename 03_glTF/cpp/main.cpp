@@ -128,7 +128,6 @@ int main(int argc, char *argv[]) {
 
     //gpu->enable_features.samplerAnisotropy = VK_TRUE;
     gpu->enable_features.sampleRateShading = VK_TRUE;
-    //gpu->enable_features_12.bufferDeviceAddress = VK_TRUE;
     gpu->extensions.Add("VK_KHR_buffer_device_address");
 
     //--- Device and Queues ---

@@ -5,7 +5,9 @@
 #include "OnScreen.h"
 #include "OffScreen.h"
 #include "Scene.h"
+#ifdef ENABLE_IMGUI
 #include "DearImGui.h"
+#endif
 
 //-- EVENT HANDLERS --
 class MainWindow : public vkWindow {
@@ -20,7 +22,9 @@ class MainWindow : public vkWindow {
     bool  m_keyboardVisible = false;
   public:
     Scene* scene;
+#ifdef ENABLE_IMGUI
     DearImGui* im;
+#endif
     uint32_t flags  = 0;
 
     void OnResizeEvent(uint16_t width, uint16_t height) {
@@ -45,8 +49,9 @@ class MainWindow : public vkWindow {
 
     // mouse drag
     void OnMouseEvent(eAction action, int16_t x, int16_t y, uint8_t btn) {
+#ifdef ENABLE_IMGUI
         if(im->OnMouseEvent(action, x, y, btn)) return;
-
+#endif
         if(action==eMOVE && btn==1) { 
             float dy = x - m_mx;
             float dx = y - m_my;
@@ -62,7 +67,9 @@ class MainWindow : public vkWindow {
     }
     //  touch screen
     void OnTouchEvent(eAction action, float x, float y, uint8_t id) {
+#ifdef ENABLE_IMGUI
         if(im->OnTouchEvent(action,x,y,id)) return;
+#endif
         const char *type[] {"up  ", "down", "move"};
         printf("Touch: %s %f x %f id:%d\n", type[action], x, y, id); 
 
@@ -159,13 +166,13 @@ int main(int argc, char *argv[]) {
 
     //----Onscreen----
     OnScreen onscreen;
-
+#ifdef ENABLE_IMGUI
     //--for imgui--
     onscreen.im.instance = instance;
     onscreen.im.window = &window;
     window.im = &onscreen.im;
     //-------------
-
+#endif
     onscreen.Init(*present_queue, *graphics_queue, surface);
     onscreen.Bind(scene.camera);
     //----------------
@@ -184,6 +191,7 @@ int main(int argc, char *argv[]) {
 
     //--- Main Loop ---
     while (window.ProcessEvents()) {
+ #ifdef ENABLE_IMGUI
         window.im->NewFrame();
         //window.im->HandleMouse();
 
@@ -193,6 +201,7 @@ int main(int argc, char *argv[]) {
             ImGuiWindow* demoWindow = ImGui::FindWindowByName("Dear ImGui Demo");
             if (demoWindow) demoWindow->Pos = ImVec2(10, 10);
         }
+#endif
         onscreen.Bind(scene.camera);
         onscreen.Render();
 

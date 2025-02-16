@@ -161,7 +161,7 @@ void glTF::load_materials(const char* path) {
         //if(iCol>=0) images[iCol].sRGBtoUNORM();
         //if(iEmi>=0) images[iEmi].sRGBtoUNORM();
 
-        // Upload to GPU and geneate mipmaps
+        // Upload to GPU and generate mipmaps
         if(iCol>=0) vkImages[iCol].Data(images[iCol], mipmap);
         if(iOrm>=0) vkImages[iOrm].Data(images[iOrm], mipmap);
         if(iNrm>=0) vkImages[iNrm].Data(images[iNrm], mipmap);

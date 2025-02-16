@@ -605,9 +605,9 @@ public:
 
     inline mat4 Transpose3x3() const {  // Transpose 3x3 part of 4x4 matrix
         mat4 R;
-        R.m00= m00;  R.m10= m01;  R.m20= m02;
-        R.m01= m10;  R.m11= m11;  R.m21= m12;
-        R.m02= m20;  R.m12= m21;  R.m22= m22;
+        R.xAxis().set(m00, m01, m02);
+        R.yAxis().set(m10, m11, m12);
+        R.zAxis().set(m20, m21, m22);
         return R;
     }
 
@@ -1072,9 +1072,9 @@ public:
 
     inline dmat4 Transpose3x3() const {  // Transpose 3x3 part of 4x4 matrix
         dmat4 R;
-        R.m00= m00;  R.m10= m01;  R.m20= m02;
-        R.m01= m10;  R.m11= m11;  R.m21= m12;
-        R.m02= m20;  R.m12= m21;  R.m22= m22;
+        R.xAxis().set(m00, m01, m02);
+        R.yAxis().set(m10, m11, m12);
+        R.zAxis().set(m20, m21, m22);
         return R;
     }
 

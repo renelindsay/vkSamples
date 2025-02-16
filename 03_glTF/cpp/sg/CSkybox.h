@@ -6,6 +6,7 @@
 
 #include "CObject.h"
 #include "Material.h"
+#include "CPipeline.h"
 
 //---------------------------------------------------------
 

@@ -48,8 +48,7 @@ class Swapchain : public FBO {
 
     void Clear();
     void Init(const CQueue* present_queue, const CQueue* graphics_queue=0);
-    void SetExtent();
-
+    bool SetExtent();
     void Apply();
 public:
     VkSurfaceCapabilitiesKHR surface_caps{};

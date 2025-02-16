@@ -17,6 +17,7 @@ aux_source_directory(./thirdparty    SRC_LIST)
 add_library(${PROJECT_NAME} ${SRC_LIST})
 #==============================LINUX==============================
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    #target_compile_options(${PROJECT_NAME} PUBLIC -fno-strict-aliasing)  # for union in matrix.h
     #set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)  # smaller exe -flto
 endif()
 #=================================================================

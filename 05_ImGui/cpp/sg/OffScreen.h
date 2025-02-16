@@ -3,6 +3,7 @@
 
 #include "CDevices.h"
 #include "CRenderpass.h"
+#include "CPipeline.h"
 #include "CCamera.h"
 #include "FBO.h"
 
