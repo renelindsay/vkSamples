@@ -1,7 +1,7 @@
 #include "CCamera.h"
 
 CCamera::CCamera(const char* name) : CObject(name) {
-    type = ntCAMERA; 
+    type = "Camera";
     SetPerspective(1, 45, 1, 1000);
     if(!!default_allocator) Init();
     else LOGW("CCamera:  Allocator not initialized yet. Call CCamera.Init() when its ready.");

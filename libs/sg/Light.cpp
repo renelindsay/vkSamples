@@ -1,7 +1,7 @@
 #include "Light.h"
 
 CLight::CLight(const char* name) : CObject(name) {
-    type = ntLIGHT;
+    type = "Light";
     if(!!default_allocator) Init();
     else LOGW("CLight:  Allocator not initialized yet. Call Light.Init when its ready.");
 }

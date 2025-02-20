@@ -84,5 +84,4 @@ void Scene::Init() {
 
     // camera
     camera.matrix.Translate(0, 0, 5);   // camera offset
-
 }

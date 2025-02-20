@@ -23,7 +23,7 @@ public:
     CvkImage*  cubemap =0;
     bool flipped = false;
 
-    CBox(const char* name="box") : CObject(name) { type = ntBOX; hitGroup = 0; }
+    CBox(const char* name="box") : CObject(name) { type = "Box"; hitGroup = 0; }
     void Init();
     void Draw();
 };
@@ -32,7 +32,7 @@ public:
 
 class CSkybox : public CBox {
 public: 
-    CSkybox(const char* name="skybox") : CBox(name) { type = ntSKYBOX; flipped = true; }
+    CSkybox(const char* name="skybox") : CBox(name) { type = "Skybox"; flipped = true; }
     void Draw();
 };
 

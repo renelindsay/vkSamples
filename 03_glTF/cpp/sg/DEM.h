@@ -9,7 +9,7 @@ public:
     uint width  = 0;
     uint height = 0;
 
-    DEM(const char* name="dem") : CMesh(name) {type = ntDEM; }
+    DEM(const char* name="dem") : CMesh(name) {type = "Dem"; }
     void Init(){};
     void Build(CImage& img, float zscale=1);
 };

@@ -46,7 +46,7 @@ class glTF : public CObject {
     CCamera* get_camera(const tinygltf::Camera& t_cam);
 
   public:
-    glTF(const char* name="glTF") : CObject(name) { type = ntGLTF; }
+    glTF(const char* name="glTF") : CObject(name) { type = "GLTF"; }
     ~glTF(){ Clear(); }
     void Clear();
     CNode* Load(const char* filename, CObject* parent = nullptr);

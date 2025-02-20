@@ -15,10 +15,6 @@
     typedef mat4 MAT4;
 #endif
 
-
-static const char* ntStr[] { "Node", "Camera", "Light", "Mesh", "Quad", "Cube", "Sphere", "Shape", "glTF", "Box", "Skybox", "DEM"};
-             enum NodeType { ntNODE, ntCAMERA, ntLIGHT, ntMESH, ntQUAD, ntCUBE, ntSPHERE, ntSHAPE, ntGLTF, ntBOX, ntSKYBOX, ntDEM};
-
 struct CamUniform {
     mat4 view;
     mat4 proj;
@@ -31,9 +27,8 @@ class CObject : public CNode {
 public:
     MAT4 matrix;            // Local Transform matrix, relative to parent
     MAT4 worldMatrix;       // World matrix of this object (derived from matrix)
-    NodeType type = ntNODE;
+    std::string type = "Node";
     std::string name = "";
-    const char* typeStr() { return ntStr[type]; }
     bool visible = true;
     int hitGroup = -1;  // 0=miss 1=hit
 
@@ -54,8 +49,8 @@ public:
     typedef std::function<void(CObject& curr)> recurse_fn;
     void recurse(recurse_fn fn);
 
-    CObject* Find(const std::string& name);        // find child node by name
-    std::vector<CObject*> FindAll(NodeType type);  // find all nodes of given type
+    CObject* Find(std::string_view name);                  // find child node by name
+    std::vector<CObject*> FindAll(std::string_view type);  // find all nodes of given type
     //-------------
 
     //-- Recursive node functions --

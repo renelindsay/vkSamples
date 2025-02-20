@@ -26,14 +26,14 @@ void CObject::recurse(recurse_fn fn) {
     }
 }
 
-CObject* CObject::Find(const std::string& name) {
+CObject* CObject::Find(std::string_view name) {
     CObject* found = 0;
     auto lamda = [&](CObject& node){ if(node.name==name) found = &node; };
     recurse(lamda);
     return found;
 }
 
-std::vector<CObject*> CObject::FindAll(NodeType type) {  // return a list of objects of given type
+std::vector<CObject*> CObject::FindAll(std::string_view type) {  // return a list of objects of given type
     std::vector<CObject*> list;
     recurse([&](CObject& node){ if(node.type==type) list.push_back(&node); } );
     return list;
@@ -69,7 +69,7 @@ void CObject::Print() {  // print scene graph tree view
         while((item = item->Parent())) {
             prefix = (item->Next()) ? "│ "+prefix : "  "+prefix;
         }
-        printf("%s%s : %s\n",prefix.c_str(), node.typeStr(), node.name.c_str());
+        printf("%s%s : %s\n",prefix.c_str(), node.type.c_str(), node.name.c_str());
     });
     printf("\n");
 }

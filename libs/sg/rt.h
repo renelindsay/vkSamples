@@ -16,13 +16,13 @@ public:
     void Init(CQueue& queue, CCamera& camera, VkImageView target) {
         vkray.Init(queue);
         CObject& root = camera.GetRoot();
-        root.FindAll(ntSKYBOX)[0]->AddToBLAS(vkray);
+        root.FindAll("Skybox")[0]->AddToBLAS(vkray);
         meshList = root.GetRenderList();
         for(auto item : meshList){ item->AddToBLAS(vkray); }
         vkray.BuildAS();    
         vkray.m_target = target;
         vkray.m_camera = &camera.cam_ubo;
-        CLight* light = (CLight*)root.FindAll(ntLIGHT)[0];
+        CLight* light = (CLight*)root.FindAll("Light")[0];
         vkray.m_light = &light->light_ubo;       
         vkray.CreateDescriptorSet();
         vkray.CreatePipeline();
