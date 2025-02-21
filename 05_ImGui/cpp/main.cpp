@@ -55,15 +55,14 @@ class MainWindow : public vkWindow {
         if(action==eMOVE && btn==1) { 
             float dy = x - m_mx;
             float dx = y - m_my;
-            scene->camX.matrix.RotateY(dy/8);
-            scene->camY.matrix.RotateX(dx/8);
+            scene->camera.Orbit(-dy/8, dx/8);
         }
         m_mx = x; m_my = y;
 
         // -- Mouse wheel to zoom --
-        if(scene->camera.matrix.position().z <=0.01) scene->camera.matrix.position().z = 0.01; // clamp min distance
-        if(action==eDOWN && btn==4) scene->camera.matrix.position().z /= 1.1f;  //mouse wheel fwd
-        if(action==eDOWN && btn==5) scene->camera.matrix.position().z *= 1.1f;  //mouse wheel back
+        scene->camera.orbit_radius = clampd(scene->camera.orbit_radius, 1, 10);  // clamp distance
+        if(action==eDOWN && btn==4) scene->camera.orbit_radius /= 1.1f;          // mouse wheel fwd
+        if(action==eDOWN && btn==5) scene->camera.orbit_radius *= 1.1f;          // mouse wheel back
     }
     //  touch screen
     void OnTouchEvent(eAction action, float x, float y, uint8_t id) {
@@ -78,8 +77,7 @@ class MainWindow : public vkWindow {
 
         if(id==0) {
             if(action==eMOVE && m_dist==0) {
-                scene->camX.matrix.RotateY(dy/4);
-                scene->camY.matrix.RotateX(dx/4);
+                scene->camera.Orbit(-dy/4, dx/4);
             }
             m_mx = x; m_my = y;
         }
@@ -92,7 +90,7 @@ class MainWindow : public vkWindow {
             if(action==eMOVE) {
                 float new_dist = sqrt(dx*dx + dy*dy);
                 float delta = (new_dist / m_dist);
-                scene->camera.matrix.position().z /= delta;
+                scene->camera.orbit_radius /= delta;
                 m_dist = new_dist;
             }
         }

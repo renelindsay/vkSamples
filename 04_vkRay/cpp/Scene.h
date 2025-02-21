@@ -7,8 +7,6 @@
 struct Scene {
     //---- Scene objects ----
     CObject root   = "root";
-    CObject camX   = "camX";
-    CObject camY   = "camY";
     CCamera camera = "camera";
     glTF    model  = "glTF";
     CSphere sphere = "sphere";
@@ -24,9 +22,7 @@ struct Scene {
 
 void Scene::Init() {
     //--- Scene graph structure ---
-    root.Add(camX);
-    camX.Add(camY);
-    camY.Add(camera);
+    root.Add(camera);
     root.Add(skybox);
     //root.Add(sphere);
     //root.Add(cube);
@@ -94,5 +90,5 @@ void Scene::Init() {
 #endif
 
     sphere.material.color.orm.set(1,1,0);
-    camera.matrix.Translate(0, 0, 4);   // camera offset
+    camera.orbit_radius = 4;   // camera offset
 };

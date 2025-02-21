@@ -17,6 +17,7 @@ class CCamera : public CObject {
     UBO  cam_ubo;
     MAT4 proj_matrix;
     uint flags=0;
+    double orbit_radius=0;  // >0 enables orbit mode
 
     CCamera(const char* name="camera");
     void Init();  //Allocate UBO
@@ -30,6 +31,7 @@ class CCamera : public CObject {
 
     void Transform();
     //void Draw(){};
+    void Orbit(double angle, double pitch);
 };
 
 #endif

@@ -31,6 +31,14 @@ void CCamera::SetOrthographic(float left, float right, float bottom, float top, 
 }
 
 void CCamera::Transform() {
+    if(orbit_radius) matrix.position() = matrix.zAxis() * orbit_radius;
     CObject::Transform();
     //Apply();
+}
+
+void CCamera::Orbit(double angle, double pitch) {
+    vec3 axis(matrix.m10, matrix.m11, matrix.m12);
+    matrix.Rotate(angle, axis);
+    matrix.RotateX(pitch);
+    //matrix.position() = matrix.zAxis() * orbit_radius;
 }
