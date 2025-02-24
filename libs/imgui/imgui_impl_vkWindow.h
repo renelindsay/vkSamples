@@ -29,5 +29,5 @@ extern float ActualFramerate;  // Wall-clock framerate average over last 120 fra
 
 void ImGui_ImplvkWindow_UpdateMouse(uint8_t btns, int16_t x, int16_t y);
 void ImGui_ImplvkWindow_ScrollWheel(vkWindow* window, float xoffset, float yoffset);
-void ImGui_ImplvkWindow_KeyPressed(vkWindow* window, int scancode, int action);
-void ImGui_ImplvkWindow_TextInput(const char* str);
+void ImGui_ImplvkWindow_KeyPressed(vkWindow* window, int keycode, int action);
+void ImGui_ImplvkWindow_TextInput(vkWindow* window, const char* str);

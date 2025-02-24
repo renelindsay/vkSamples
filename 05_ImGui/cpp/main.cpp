@@ -32,6 +32,10 @@ class MainWindow : public vkWindow {
     }
 
     void OnKeyEvent(eAction action, eKeycode keycode) {
+#ifdef ENABLE_IMGUI
+        if(im->OnKeyEvent(action, keycode)) return;
+#endif
+
         if(action==eDOWN) {
             if(keycode == KEY_1) flags = 1;  // diffuse light
             if(keycode == KEY_2) flags = 2;  // specular light
@@ -45,6 +49,12 @@ class MainWindow : public vkWindow {
             if(keycode == KEY_0) flags = 0;  // final render
         }
         scene->camera.flags = flags;
+    }
+
+    void OnTextEvent(const char *str) {
+#ifdef ENABLE_IMGUI
+        if(im->OnTextEvent(str)) return;
+#endif
     }
 
     // mouse drag
@@ -202,7 +212,7 @@ int main(int argc, char *argv[]) {
 #endif
         onscreen.Bind(scene.camera);
         onscreen.Render();
-
+/*
         if(window.GetKeyState(KEY_S)) {  // 'S': save screenshot
             CvkImage& attachment = onscreen.swapchain.att_images[1];
             attachment.Read().Save("frame.png");
@@ -216,6 +226,7 @@ int main(int argc, char *argv[]) {
             img.BGRAtoRGBA();
             img.Save("fbo.png");
         }
+*/
     }
     //-----------------
     return 0;
