@@ -75,6 +75,18 @@ public:
         if(!!descriptorPool) vkDestroyDescriptorPool(device, descriptorPool, NULL);
     }
 
+    bool OnKeyEvent(eAction action, eKeycode keycode) {
+        ImGui_ImplvkWindow_KeyPressed(window, keycode, action);
+        ImGuiIO& io = ImGui::GetIO();
+        return io.WantCaptureKeyboard; // return true if imgui handled the key event
+    }
+
+    bool OnTextEvent(const char* str) {
+        ImGui_ImplvkWindow_TextInput(window, str);
+        ImGuiIO& io = ImGui::GetIO();
+        return io.WantCaptureKeyboard;
+    }
+
     bool OnMouseEvent(eAction action, int16_t x, int16_t y, uint8_t btn) {
         static uint8_t btns = 0;
         if(action==eDOWN)  btns |= 1<<(btn-1);
