@@ -41,9 +41,10 @@ const unsigned char WIN32_TO_HID[256] = {
 class Window_win32 : public WindowBase {
     HINSTANCE m_hInstance;
     HWND m_hWnd;
-    HBITMAP m_DIB = 0;  // For ShowImage().  Holds image to display.
+    CMTouch MTouch;       // Multi-Touch device
+    HBITMAP m_DIB = 0;    // For ShowImage().  Holds image to display.
+    HCURSOR cursors[12];  // For mouse cursors
 
-    CMTouch MTouch;  // Multi-Touch device
     void Create(const char* title="Window", uint width=640, uint height=480);
 public:
     void SetTitle(const char* title);
@@ -58,6 +59,7 @@ public:
     const void* GetNativeHandle() const {return &m_hInstance;};
     float GetDisplayScale();
     void ShowImage(uint32_t* buf, uint32_t width, uint32_t height);
+    void SetCursor(eCursor id);
 };
 //==============================================================
 #endif
@@ -112,6 +114,18 @@ void Window_win32::Create(const char* title, uint width, uint height) {
                           m_hInstance,                                    // hInstance
                           NULL);                                          // no extra parameters
     assert(m_hWnd && "Failed to create a window.");
+
+    cursors[0] = LoadCursor(NULL, IDC_ARROW);      // Arrow
+    cursors[1] = LoadCursor(NULL, IDC_IBEAM);      // Caret (Text Input)
+    cursors[2] = LoadCursor(NULL, IDC_SIZEALL);    // Resize All
+    cursors[3] = LoadCursor(NULL, IDC_SIZENS);     // Resize NS
+    cursors[4] = LoadCursor(NULL, IDC_SIZEWE);     // Resize EW
+    cursors[5] = LoadCursor(NULL, IDC_SIZENESW);   // Resize NESW
+    cursors[6] = LoadCursor(NULL, IDC_SIZENWSE);   // Resize NWSE
+    cursors[7] = LoadCursor(NULL, IDC_HAND);       // Hand
+    cursors[8] = LoadCursor(NULL, IDC_WAIT);        // Wait
+    cursors[9] = LoadCursor(NULL, IDC_APPSTARTING); // Progress
+    cursors[10]= LoadCursor(NULL, IDC_NO);         // Not Allowed
 
     eventFIFO.push(ResizeEvent(width, height));
 }
@@ -209,6 +223,7 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
                 int16_t x = (int16_t)r.left;
                 int16_t y = (int16_t)r.top;
                 if (x != shape.x || y != shape.y) return MoveEvent(x, y);  // window moved
+                break;
             }
             case WM_CLOSE: {
                 if(msg.hwnd == m_hWnd) {
@@ -260,6 +275,7 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
     return {EventType::NONE};
 }
 
+static bool inClientArea = false;
 // MS-Windows event handling function:
 LRESULT CALLBACK WndProc(HWND m_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
@@ -273,14 +289,32 @@ LRESULT CALLBACK WndProc(HWND m_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
         case WM_PAINT:
              //LOGI("WM_PAINT\n");
             return 0;
-        case WM_GETMINMAXINFO:  // set window's minimum size
-            // ((MINMAXINFO*)lParam)->ptMinTrackSize = demo.minsize;
+        case WM_GETMINMAXINFO: {  // set window's minimum size
+            MINMAXINFO* pmmi = (MINMAXINFO*)lParam;
+            pmmi->ptMinTrackSize.x = 8;
+            pmmi->ptMinTrackSize.y = 8;
             return 0;
+        }
+        case WM_NCHITTEST: {
+            POINT pt;
+            pt.x = GET_X_LPARAM(lParam);
+            pt.y = GET_Y_LPARAM(lParam);
+            ScreenToClient(m_hWnd, &pt);
+
+            RECT rect;
+            GetClientRect(m_hWnd, &rect);
+
+            // Flag if mouse is in client area (for mouse cursor)
+            inClientArea = ((pt.x > rect.left)&&(pt.x < rect.right)
+                          &&(pt.y > rect.top )&&(pt.y < rect.bottom));
+            break;
+        }
 
 //        case WM_IME_CHAR: 
 //            wprintf(L"WM_IME_CHAR : %c\n", (wchar_t)wParam);
 //            return 0;
 
+        case WM_SIZE         : { PostMessage(m_hWnd, WM_RESHAPE, 0, 0);          break; }
         case WM_EXITSIZEMOVE : { PostMessage(m_hWnd, WM_RESHAPE, 0, 0);          break; }
         case WM_ACTIVATE     : { PostMessage(m_hWnd, WM_ACTIVE, wParam, lParam); break; }
         default: break;
@@ -308,6 +342,10 @@ void Window_win32::ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {  
     m_DIB = CreateDIBitmap(hdc, &bmi.bmiHeader, CBM_INIT, buf, &bmi, DIB_RGB_COLORS);
     ReleaseDC(NULL, hdc);
     InvalidateRect(m_hWnd, NULL, false);
+}
+
+void Window_win32::SetCursor(eCursor id) {      // Override mouse cursor,
+    if(inClientArea) ::SetCursor(cursors[id]);  // but not on window edges
 }
 
 #endif  // WINDOW_IMPLEMENTATION

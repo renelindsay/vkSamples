@@ -101,6 +101,8 @@ bool Swapchain::SetExtent() {  // Fit image extent to window size
     VkExtent2D& curr = surface_caps.currentExtent;  // surface extent
     VkExtent2D& ext = info.imageExtent;             // swapchain extent
     if (ext==curr) return false;
+    if (!curr.width) return false;                  // Allow Minimize on Windows
+    if (!curr.height) return false;                 // Allow Minimize on Windows
     //printf("swapchain: w=%d h=%d curr_w=%d curr_h=%d\n", ext.width, ext.height, curr.width, curr.height);
     extent = ext = curr;
     resized = true;

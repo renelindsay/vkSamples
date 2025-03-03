@@ -13,8 +13,9 @@ aux_source_directory(. SRC_LIST)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")    
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")  #for find_package
     add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
-    add_definitions(-DENABLE_MULTITOUCH)
-    add_definitions(-DENABLE_XCB_IMAGE)
+    #add_definitions(-DENABLE_MULTITOUCH)
+    #add_definitions(-DENABLE_XCB_IMAGE)
+    #add_definitions(-DENABLE_XCB_CURSOR)
 
     find_package(X11 REQUIRED)
     include_directories(${X11_INCLUDE_DIR})
@@ -24,6 +25,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     link_libraries(${X11_xkbcommon_LIB}) # Keyboard
     link_libraries(${X11_Xinput_LIB})    # MultiTouch
     link_libraries(libxcb-image.so)      # ShowImage
+    link_libraries(libxcb-cursor.so)     # Mouse cursors
     add_library(${PROJECT_NAME} STATIC ${SRC_LIST})
 endif()
 #=================================================================

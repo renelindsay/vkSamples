@@ -28,7 +28,7 @@ bool ImGui_ImplvkWindow_Init(vkWindow* window) {
 
     // Setup back-end capabilities flags
     ImGuiIO& io = ImGui::GetIO();
-    //io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
+    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
     //io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
     io.BackendPlatformName = "imgui_impl_vkWindow";
 
@@ -150,7 +150,6 @@ bool ImGui_ImplvkWindow_Init(vkWindow* window) {
     KeyMap[KEY_RightAlt]     = ImGuiKey_RightAlt;
     KeyMap[KEY_RightGUI]     = ImGuiKey_RightSuper;
 
-
     io.SetClipboardTextFn = ImGui_ImplvkWindow_SetClipboardText;
     io.GetClipboardTextFn = ImGui_ImplvkWindow_GetClipboardText;
     io.ClipboardUserData = g_window;
@@ -226,10 +225,10 @@ float wall_delta_time() {  // returns wall clock time in seconds, since last cal
      return delta / 1000.f;
 };
 */
+
 double wall_delta_time_hires() {  // returns wall clock time in seconds, since last call (nano-second res)
-    using namespace std::chrono;
     static high_resolution_clock::time_point last = high_resolution_clock::now();
-           high_resolution_clock::time_point curr = high_resolution_clock::now();
+    high_resolution_clock::time_point curr = high_resolution_clock::now();
     duration<double> time_span = duration_cast<duration<double>>(curr - last);
     last = curr;
     return time_span.count();
@@ -271,9 +270,32 @@ void ImGui_ImplvkWindow_NewFrame() {
     ActualFramerate = rate;
     //------------------------------------------------
 
+    ImGui_ImplvkWindow_UpdateMouseCursor();
 
     //ImGui_ImplGlfw_UpdateMousePosAndButtons();  //TODO
-    //ImGui_ImplGlfw_UpdateMouseCursor();         //TODO
-    //ImGui_ImplGlfw_UpdateGamepads();            // Update game controllers (if enabled and available)
+    //ImGui_ImplGlfw_UpdateGamepads();            // Update game controllers (if enabled and available) 
 }
 
+void ImGui_ImplvkWindow_UpdateMouseCursor() {
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuiConfigFlags flags = io.ConfigFlags;
+    if(flags & ImGuiConfigFlags_NoMouseCursorChange) return;
+
+    eCursor cursor = eArrow;
+    ImGuiMouseCursor cursor_type = ImGui::GetMouseCursor();
+    switch (cursor_type) {
+        case ImGuiMouseCursor_Arrow:      cursor = eArrow;      break;
+        case ImGuiMouseCursor_TextInput:  cursor = eCaret;      break;
+        case ImGuiMouseCursor_ResizeAll:  cursor = eRezizeAll;  break;
+        case ImGuiMouseCursor_ResizeNS:   cursor = eResizeNS;   break;
+        case ImGuiMouseCursor_ResizeEW:   cursor = eResizeEW;   break;
+        case ImGuiMouseCursor_ResizeNESW: cursor = eResizeNESW; break;
+        case ImGuiMouseCursor_ResizeNWSE: cursor = eResizeNWSE; break;
+        case ImGuiMouseCursor_Hand:       cursor = eHand;       break;
+        case ImGuiMouseCursor_Wait:       cursor = eWait;       break;
+        case ImGuiMouseCursor_Progress:   cursor = eProgress;   break;
+        case ImGuiMouseCursor_NotAllowed: cursor = eNotAllowed; break;
+        default: cursor = eArrow;
+    }
+    g_window->SetCursor(cursor);
+}

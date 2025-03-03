@@ -1,5 +1,10 @@
 //#define VK_USE_PLATFORM_XCB_KHR
 //#define WINDOW_IMPLEMENTATION
+
+#define ENABLE_MULTITOUCH
+#define ENABLE_XCB_IMAGE
+#define ENABLE_XCB_CURSOR
+
 //============================XCB===============================
 #ifdef VK_USE_PLATFORM_XCB_KHR
 
@@ -16,6 +21,9 @@
 #include <stdlib.h>               // atof
 #ifdef ENABLE_XCB_IMAGE
 #include <xcb/xcb_image.h>        // ShowImage  libxcb-image0-dev
+#endif
+#ifdef ENABLE_XCB_CURSOR
+#include <xcb/xcb_cursor.h>       // mouse cursor icons
 #endif
 //-------------------------------------------------
 #include <assert.h>
@@ -95,6 +103,12 @@ class Window_xcb : public WindowBase {
     int xi_opcode;  // 131
     int xi_devid;   // 2
     //------------------
+    //----- Cursor -----
+#ifdef ENABLE_XCB_CURSOR
+    xcb_cursor_context_t *cursor_ctx;
+    xcb_cursor_t cursors[12];
+#endif
+    //------------------
 
     bool InitTouch();                                        // Returns false if no touch-device was found.
     EventType TranslateEvent(xcb_generic_event_t* x_event);  // Convert x_event to WSIWindow event
@@ -114,10 +128,12 @@ class Window_xcb : public WindowBase {
     const void* GetNativeHandle() const {return &xcb_connection;}
     float GetDisplayScale();
     void ShowImage(uint32_t* buf, uint32_t width, uint32_t height);
+    void SetCursor(eCursor id);
 };
 //==============================================================
 #endif
 
+//#define WINDOW_IMPLEMENTATION
 #ifdef WINDOW_IMPLEMENTATION
 
 //=======================XCB IMPLEMENTATION=====================
@@ -200,6 +216,23 @@ void Window_xcb::Create(const char* title, uint width, uint height) {
     SetTitle(title);
     eventFIFO.push(ResizeEvent(width, height));  // ResizeEvent BEFORE focus, for consistency with win32 and android
 
+    //---- Mouse Cursor ----
+#ifdef ENABLE_XCB_CURSOR
+    xcb_cursor_context_new(xcb_connection, xcb_setup_roots_iterator(setup).data, &cursor_ctx);
+    cursors[eCursor::eArrow]      = xcb_cursor_load_cursor(cursor_ctx, "left_ptr");
+    cursors[eCursor::eCaret]      = xcb_cursor_load_cursor(cursor_ctx, "xterm");
+    cursors[eCursor::eRezizeAll]  = xcb_cursor_load_cursor(cursor_ctx, "fleur");
+    cursors[eCursor::eResizeNS]   = xcb_cursor_load_cursor(cursor_ctx, "sb_v_double_arrow");
+    cursors[eCursor::eResizeEW]   = xcb_cursor_load_cursor(cursor_ctx, "sb_h_double_arrow");
+    cursors[eCursor::eResizeNESW] = xcb_cursor_load_cursor(cursor_ctx, "top_right_corner");
+    cursors[eCursor::eResizeNWSE] = xcb_cursor_load_cursor(cursor_ctx, "top_left_corner");
+    cursors[eCursor::eHand]       = xcb_cursor_load_cursor(cursor_ctx, "hand2");
+    cursors[eCursor::eWait]       = xcb_cursor_load_cursor(cursor_ctx, "wait");
+    cursors[eCursor::eProgress]   = xcb_cursor_load_cursor(cursor_ctx, "progress");
+    cursors[eCursor::eNotAllowed] = xcb_cursor_load_cursor(cursor_ctx, "circle");
+#endif
+    //----------------------
+
     //----Map the window----
     xcb_map_window(xcb_connection, xcb_window);
     xcb_flush(xcb_connection);
@@ -211,7 +244,7 @@ void Window_xcb::Create(const char* title, uint width, uint height) {
         free(event);
         if(mapped) break;
     }
-    //----------------------
+    //---------------------- 
 }
 
 Window_xcb::~Window_xcb() {
@@ -220,7 +253,10 @@ Window_xcb::~Window_xcb() {
     if(gc)     xcb_free_gc    (xcb_connection, gc);
     if(pixmap) xcb_free_pixmap(xcb_connection, pixmap);
 #endif
-
+#ifdef ENABLE_XCB_CURSOR
+    for(int i=0; i<10; ++i) xcb_free_cursor(xcb_connection, cursors[i]);
+    xcb_cursor_context_free(cursor_ctx);
+#endif
     XFree(atom_wm_delete_window);
     xcb_disconnect(xcb_connection);
     XFree(k_ctx);  // xkb keyboard
@@ -445,6 +481,14 @@ void Window_xcb::ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {  //
     xcb_free_pixmap(c, pixmap);
 }
 #endif
+
+
+void Window_xcb::SetCursor(eCursor id) {
+#ifdef ENABLE_XCB_CURSOR
+    xcb_change_window_attributes(xcb_connection, xcb_window, XCB_CW_CURSOR, &cursors[id]);
+#endif
+}
+
 
 #endif  // WINDOW_IMPLEMENTATION
 

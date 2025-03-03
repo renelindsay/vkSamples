@@ -31,3 +31,4 @@ void ImGui_ImplvkWindow_UpdateMouse(uint8_t btns, int16_t x, int16_t y);
 void ImGui_ImplvkWindow_ScrollWheel(vkWindow* window, float xoffset, float yoffset);
 void ImGui_ImplvkWindow_KeyPressed(vkWindow* window, int keycode, int action);
 void ImGui_ImplvkWindow_TextInput(vkWindow* window, const char* str);
+void ImGui_ImplvkWindow_UpdateMouseCursor();

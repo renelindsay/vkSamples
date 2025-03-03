@@ -86,7 +86,7 @@ class CMTouch {
     }
 };
 //==============================================================
-
+enum eCursor{eArrow, eCaret, eRezizeAll, eResizeNS, eResizeEW, eResizeNESW, eResizeNWSE, eHand, eWait, eProgress, eNotAllowed};
 //======================Window base class=======================
 class WindowBase {
     struct {int16_t x; int16_t y;}mousepos = {};                               // mouse position
@@ -140,6 +140,7 @@ class WindowBase {
     virtual void SetWinSize(uint w, uint h) {}
     virtual const void* GetNativeHandle() const = 0;
     virtual void ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {}
+    virtual void SetCursor(eCursor id) {};
 
     //--Event loop--
     virtual EventType GetEvent(bool wait_for_event = false) = 0;  // Fetch one event from the queue.
