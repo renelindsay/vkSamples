@@ -27,10 +27,10 @@ class MainWindow : public vkWindow {
     //  change spin with arrow keys
     void OnKeyEvent(eAction action, eKeycode keycode) {
         if(action==eDOWN) {
-            if(keycode == KEY_Left ) dy+=0.1f;
-            if(keycode == KEY_Right) dy-=0.1f;
-            if(keycode == KEY_Up   ) dx+=0.1f;
-            if(keycode == KEY_Down ) dx-=0.1f;
+            if(keycode == eKEY_Left ) dy+=0.1f;
+            if(keycode == eKEY_Right) dy-=0.1f;
+            if(keycode == eKEY_Up   ) dx+=0.1f;
+            if(keycode == eKEY_Down ) dx-=0.1f;
         }
     }
 

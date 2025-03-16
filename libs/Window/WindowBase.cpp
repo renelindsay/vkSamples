@@ -52,6 +52,29 @@ EventType WindowBase::FocusEvent(bool has_focus) {
     return e;
 }
 
+EventType WindowBase::JSConnect(uint8_t jid, bool active) {
+    EventType e = {EventType::JS_CONNECT};
+    e.js_connect.jid = jid;
+    e.js_connect.active = active;
+    return e;
+}
+
+EventType WindowBase::JSButton(uint8_t jid, eAction action, uint8_t btn) {
+    EventType e = {EventType::JS_BUTTON};
+    e.js_button.jid = jid;
+    e.js_button.action = action;
+    e.js_button.btn = btn;
+    return e;
+}
+
+EventType WindowBase::JSAxis(uint8_t jid, uint8_t axis, int16_t val) {
+    EventType e = {EventType::JS_AXIS};
+    e.js_axis.jid  = jid;
+    e.js_axis.axis = axis;
+    e.js_axis.val  = val;
+    return e;
+}
+
 EventType WindowBase::CloseEvent() {
     m_running = false;
     return {EventType::CLOSE};
@@ -72,14 +95,17 @@ bool WindowBase::ProcessEvents(bool wait_for_event) {
 
 bool WindowBase::ProcessEvent(EventType e) {
     switch (e.tag) {
-       case EventType::MOUSE : OnMouseEvent (e.mouse.action, e.mouse.x, e.mouse.y, e.mouse.btn);  break;
-       case EventType::KEY   : OnKeyEvent   (e.key.action, e.key.keycode);                        break;
-       case EventType::TEXT  : OnTextEvent  (e.text.str);                                         break;
-       case EventType::MOVE  : OnMoveEvent  (e.move.x, e.move.y);                                 break;
-       case EventType::RESIZE: OnResizeEvent(e.resize.width, e.resize.height);                    break;
-       case EventType::FOCUS : OnFocusEvent (e.focus.has_focus);                                  break;
-       case EventType::TOUCH : OnTouchEvent (e.touch.action, e.touch.x, e.touch.y, e.touch.id);   break;
-       case EventType::CLOSE : OnCloseEvent (); return false;
+       case EventType::MOUSE     : OnMouseEvent (e.mouse.action, e.mouse.x, e.mouse.y, e.mouse.btn);    break;
+       case EventType::KEY       : OnKeyEvent   (e.key.action, e.key.keycode);                          break;
+       case EventType::TEXT      : OnTextEvent  (e.text.str);                                           break;
+       case EventType::MOVE      : OnMoveEvent  (e.move.x, e.move.y);                                   break;
+       case EventType::RESIZE    : OnResizeEvent(e.resize.width, e.resize.height);                      break;
+       case EventType::FOCUS     : OnFocusEvent (e.focus.has_focus);                                    break;
+       case EventType::TOUCH     : OnTouchEvent (e.touch.action, e.touch.x, e.touch.y, e.touch.id);     break;
+       case EventType::JS_CONNECT: OnJSConnect  (e.js_connect.jid, e.js_connect.active);                break;
+       case EventType::JS_BUTTON : OnJSButton   (e.js_button.jid, e.js_button.action, e.js_button.btn); break;
+       case EventType::JS_AXIS   : ONJSAxis     (e.js_axis.jid, e.js_axis.axis, e.js_axis.val);         break;
+       case EventType::CLOSE     : OnCloseEvent (); return false;
        default: break;
     }
     return true;

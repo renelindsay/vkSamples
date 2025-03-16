@@ -10,7 +10,7 @@
 #ifndef WINDOWBASE_H
 #define WINDOWBASE_H
 
-#include <stdio.h>
+//#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <string>
@@ -25,23 +25,26 @@ enum eAction { eUP, eDOWN, eMOVE };  // keyboard / mouse / touchscreen actions
 
 //========================Event Message=========================
 struct EventType {
-    enum Tag{NONE, MOUSE, KEY, TEXT, MOVE, RESIZE, FOCUS, TOUCH, CLOSE, UNKNOWN} tag; // event type
+    enum Tag{NONE, MOUSE, KEY, TEXT, MOVE, RESIZE, FOCUS, TOUCH, CLOSE, JS_CONNECT, JS_BUTTON, JS_AXIS, UNKNOWN} tag; // event type
     union {
-        struct {eAction action; int16_t x; int16_t y; uint8_t btn;} mouse;     // mouse move/click
-        struct {eAction action; eKeycode keycode;                 } key;       // Keyboard key state
-        struct {const char* str;                                  } text;      // Text entered
-        struct {int16_t x; int16_t y;                             } move;      // Window move
-        struct {uint16_t width; uint16_t height;                  } resize;    // Window resize
-        struct {bool has_focus;                                   } focus;     // Window gained/lost focus
-        struct {eAction action; float x; float y; uint8_t id;     } touch;     // multi-touch display
-        struct {                                                  } close;     // Window is closing
+        struct {eAction action; int16_t x; int16_t y; uint8_t btn;} mouse;       // mouse move/click
+        struct {eAction action; eKeycode keycode;                 } key;         // Keyboard key state
+        struct {const char* str;                                  } text;        // Text entered
+        struct {int16_t x; int16_t y;                             } move;        // Window move
+        struct {uint16_t width; uint16_t height;                  } resize;      // Window resize
+        struct {bool has_focus;                                   } focus;       // Window gained/lost focus
+        struct {eAction action; float x; float y; uint8_t id;     } touch;       // multi-touch display
+        struct {uint8_t jid; bool active;                         } js_connect;  // Joystick connect/disconnect
+        struct {uint8_t jid; eAction action; uint8_t btn;         } js_button;   // Joystick button state
+        struct {uint8_t jid; uint8_t axis; int16_t val;           } js_axis;     // Joystick axis value
+        struct {                                                  } close;       // Window is closing
     };
     void Clear() { tag = NONE; }
 };
 //==============================================================
 //======================== FIFO Buffer =========================  // Used for event message queue
 class EventFIFO {
-    static const char SIZE = 32;
+    static const char SIZE = 64;
     int head, tail;
     EventType buf[SIZE] = {};
 
@@ -100,7 +103,10 @@ class WindowBase {
     EventType TextEvent  (const char* str);                                    // Text event
     EventType MoveEvent  (int16_t x, int16_t y);                               // Window moved
     EventType ResizeEvent(uint16_t width, uint16_t height);                    // Window resized
-    EventType FocusEvent (bool has_focus);                                     // Window gained/lost focus
+    EventType FocusEvent (bool has_focus);                                     // Window gained/lost focus   
+    EventType JSConnect(uint8_t jid, bool active);                             // Joystick connect/disconnect
+    EventType JSButton(uint8_t jid, eAction action, uint8_t btn);              // Joystick button events
+    EventType JSAxis(uint8_t jid, uint8_t axis, int16_t val);                  // Joystick axis events
     EventType CloseEvent ();                                                   // Window closing
 
     float m_display_scale = 1.f;
@@ -158,6 +164,9 @@ class WindowBase {
     virtual void OnResizeEvent(uint16_t width, uint16_t height) {}                   // Callback for window resize events
     virtual void OnFocusEvent(bool hasFocus) {}                                      // Callback for window gain/lose focus events
     virtual void OnTouchEvent(eAction action, float x, float y, uint8_t id) {}       // Callback for Multi-touch events
+    virtual void OnJSConnect(uint8_t jid, bool active){}                             // Callback for Joystick connect/disconnect
+    virtual void OnJSButton(uint8_t jid, eAction action, uint8_t btn){}              // Callback for Joystick button events
+    virtual void ONJSAxis(uint8_t jid, uint8_t axis, int16_t val){}                  // Callback for Joystick axis events
     virtual void OnCloseEvent() {}                                                   // Callback for window closing event
 };
 //==============================================================

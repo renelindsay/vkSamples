@@ -27,16 +27,16 @@ class MainWindow : public vkWindow {
 
     void OnKeyEvent(eAction action, eKeycode keycode) {
         if(action==eDOWN) {
-            if(keycode == KEY_1) flags = 1;  // diffuse light
-            if(keycode == KEY_2) flags = 2;  // specular light
-            if(keycode == KEY_3) flags = 3;  // albedo texture
-            if(keycode == KEY_4) flags = 4;  // normals (no normal map)
-            if(keycode == KEY_5) flags = 5;  // normals (with normal map)
-            if(keycode == KEY_6) flags = 6;  // Ambient occlusion
-            if(keycode == KEY_7) flags = 7;  // roughness(green) + metalness(blue)
-            if(keycode == KEY_8) flags = 8;  // fresnel effect
-            if(keycode == KEY_9) flags = 9;  // final render
-            if(keycode == KEY_0) flags = 0;  // final render
+            if(keycode == eKEY_1) flags = 1;  // diffuse light
+            if(keycode == eKEY_2) flags = 2;  // specular light
+            if(keycode == eKEY_3) flags = 3;  // albedo texture
+            if(keycode == eKEY_4) flags = 4;  // normals (no normal map)
+            if(keycode == eKEY_5) flags = 5;  // normals (with normal map)
+            if(keycode == eKEY_6) flags = 6;  // Ambient occlusion
+            if(keycode == eKEY_7) flags = 7;  // roughness(green) + metalness(blue)
+            if(keycode == eKEY_8) flags = 8;  // fresnel effect
+            if(keycode == eKEY_9) flags = 9;  // final render
+            if(keycode == eKEY_0) flags = 0;  // final render
         }
         scene->camera.flags = flags;
     }
@@ -173,12 +173,12 @@ int main(int argc, char *argv[]) {
         onscreen.Bind(scene.camera);
         onscreen.Render();
 
-        if(window.GetKeyState(KEY_S)) {  // 'S': save screenshot
+        if(window.GetKeyState(eKEY_S)) {  // 'S': save screenshot
             CvkImage& attachment = onscreen.swapchain.att_images[1];
             attachment.Read().Save("frame.png");
         }
 
-        if(window.GetKeyState(KEY_F)) {  //'F': save image from FBO
+        if(window.GetKeyState(eKEY_F)) {  //'F': save image from FBO
             offscreen.Bind(scene.camera);
             offscreen.Render();
             CImage& img = offscreen.fbo.ReadImage();

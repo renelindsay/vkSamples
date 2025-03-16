@@ -1,4 +1,4 @@
-﻿//==========================Win32===============================
+//==========================Win32===============================
 
 //#define VK_USE_PLATFORM_WIN32_KHR
 //#define WINDOW_IMPLEMENTATION
@@ -115,18 +115,17 @@ void Window_win32::Create(const char* title, uint width, uint height) {
                           NULL);                                          // no extra parameters
     assert(m_hWnd && "Failed to create a window.");
 
-    cursors[0] = LoadCursor(NULL, IDC_ARROW);      // Arrow
-    cursors[1] = LoadCursor(NULL, IDC_IBEAM);      // Caret (Text Input)
-    cursors[2] = LoadCursor(NULL, IDC_SIZEALL);    // Resize All
-    cursors[3] = LoadCursor(NULL, IDC_SIZENS);     // Resize NS
-    cursors[4] = LoadCursor(NULL, IDC_SIZEWE);     // Resize EW
-    cursors[5] = LoadCursor(NULL, IDC_SIZENESW);   // Resize NESW
-    cursors[6] = LoadCursor(NULL, IDC_SIZENWSE);   // Resize NWSE
-    cursors[7] = LoadCursor(NULL, IDC_HAND);       // Hand
+    cursors[0] = LoadCursor(NULL, IDC_ARROW);       // Arrow
+    cursors[1] = LoadCursor(NULL, IDC_IBEAM);       // Caret (Text Input)
+    cursors[2] = LoadCursor(NULL, IDC_SIZEALL);     // Resize All
+    cursors[3] = LoadCursor(NULL, IDC_SIZENS);      // Resize NS
+    cursors[4] = LoadCursor(NULL, IDC_SIZEWE);      // Resize EW
+    cursors[5] = LoadCursor(NULL, IDC_SIZENESW);    // Resize NESW
+    cursors[6] = LoadCursor(NULL, IDC_SIZENWSE);    // Resize NWSE
+    cursors[7] = LoadCursor(NULL, IDC_HAND);        // Hand
     cursors[8] = LoadCursor(NULL, IDC_WAIT);        // Wait
     cursors[9] = LoadCursor(NULL, IDC_APPSTARTING); // Progress
-    cursors[10]= LoadCursor(NULL, IDC_NO);         // Not Allowed
-
+    cursors[10]= LoadCursor(NULL, IDC_NO);          // Not Allowed
     eventFIFO.push(ResizeEvent(width, height));
 }
 
@@ -168,8 +167,8 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
         if (msg.message == WM_KEYDOWN || msg.message == WM_KEYUP) {
             if (msg.wParam == VK_CONTROL) msg.wParam = (msg.lParam & (1 << 24)) ? VK_RCONTROL : VK_LCONTROL;
             if (msg.wParam == VK_SHIFT) {
-                if (!!(::GetKeyState(VK_LSHIFT) & 128) != GetKeyState(KEY_LeftShift )) PostMessage(m_hWnd, msg.message, VK_LSHIFT, 0);
-                if (!!(::GetKeyState(VK_RSHIFT) & 128) != GetKeyState(KEY_RightShift)) PostMessage(m_hWnd, msg.message, VK_RSHIFT, 0);
+                if (!!(::GetKeyState(VK_LSHIFT) & 128) != GetKeyState(eKEY_LeftShift )) PostMessage(m_hWnd, msg.message, VK_LSHIFT, 0);
+                if (!!(::GetKeyState(VK_RSHIFT) & 128) != GetKeyState(eKEY_RightShift)) PostMessage(m_hWnd, msg.message, VK_RSHIFT, 0);
                 return {EventType::NONE};
             }
         } else if (msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP) {

@@ -20,13 +20,20 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_package(X11 REQUIRED)
     include_directories(${X11_INCLUDE_DIR})
     link_libraries(${X11_LIBRARIES})
-    link_libraries(${X11_xcb_LIB})
-    link_libraries(${X11_X11_xcb_LIB})
-    link_libraries(${X11_xkbcommon_LIB}) # Keyboard
-    link_libraries(${X11_Xinput_LIB})    # MultiTouch
-    link_libraries(libxcb-image.so)      # ShowImage
-    link_libraries(libxcb-cursor.so)     # Mouse cursors
+    link_libraries(${X11_xcb_LIB})        #               (libxcb.so)
+    link_libraries(${X11_X11_xcb_LIB})    #               (libX11-xcb.so)
+    link_libraries(${X11_xkbcommon_LIB})  # Keyboard      (libxkbcommon.so)
+    link_libraries(${X11_Xinput_LIB})     # MultiTouch    (libXi.so)
+    link_libraries(${X11_xcb_image_LIB})  # ShowImage     (libxcb-image.so)
+    link_libraries(${X11_xcb_cursor_LIB}) # Mouse cursors (libxcb-cursor.so)
+
     add_library(${PROJECT_NAME} STATIC ${SRC_LIST})
+
+    # Add LIBEVDEV for Gamepad support (requires package: libevdev_dev)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBEVDEV REQUIRED libevdev)
+    target_include_directories(${PROJECT_NAME} PUBLIC ${LIBEVDEV_INCLUDE_DIRS})  # "/usr/include/libevdev-1.0"
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${LIBEVDEV_LIBRARIES})          # evdev
 endif()
 #=================================================================
 #=============================WINDOWS=============================
@@ -38,6 +45,7 @@ if(WIN32)
     remove_definitions(-Dnear)
     remove_definitions(-DLoadImage)
     add_library(${PROJECT_NAME} STATIC ${SRC_LIST})
+    target_link_libraries(${PROJECT_NAME} xinput)
 endif()
 #=================================================================
 #=============================ANDROID=============================

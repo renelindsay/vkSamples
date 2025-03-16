@@ -16,6 +16,9 @@ class MainWindow : public CWindow {  // Without Vulkan
     void OnMoveEvent  (int16_t x, int16_t y) { printf("Window Move: x=%d y=%d\n", x, y); }
     void OnFocusEvent (bool hasFocus) { printf("Focus: %s\n", hasFocus ? "True" : "False"); }
     void OnResizeEvent(uint16_t width, uint16_t height) { printf("Window Resize: width=%4d height=%4d\n", width, height); }
+    void OnJSConnect  (uint8_t jid, bool active){ printf("Joystick %d %s\n", jid, active?"connected":"disconnected"); }
+    void OnJSButton   (uint8_t jid, eAction action, uint8_t btn){printf("Joystick button %d %s\n", btn, type[action]);}
+    void ONJSAxis     (uint8_t jid, uint8_t axis, int16_t val){printf("Joystick axis %d : %d\n", axis, val);}
     void OnCloseEvent () { printf("Window Closing.\n"); }
 };
 
@@ -55,7 +58,7 @@ int main(int argc, char *argv[]) {
     //VkSurfaceKHR surface = window.CreateVkSurface(instance);  // Create the Vulkan surface (requires vkUtils)
 
     while(window.PollEvents()) {                              // Main event loop, runs until window is closed.
-        bool key_pressed = window.GetKeyState(KEY_LeftShift);
+        bool key_pressed = window.GetKeyState(eKEY_LeftShift);
         if (key_pressed) printf("LEFT SHIFT PRESSED\r");
 
 
