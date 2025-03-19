@@ -45,7 +45,8 @@ if(WIN32)
     remove_definitions(-Dnear)
     remove_definitions(-DLoadImage)
     add_library(${PROJECT_NAME} STATIC ${SRC_LIST})
-    target_link_libraries(${PROJECT_NAME} xinput)
+    target_link_libraries(${PROJECT_NAME} Xinput.lib)    # for Gamepad
+    target_link_libraries(${PROJECT_NAME} setupapi.lib)  # for Gamepad's name
 endif()
 #=================================================================
 #=============================ANDROID=============================

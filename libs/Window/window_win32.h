@@ -1,22 +1,23 @@
-//==========================Win32===============================
-
 //#define VK_USE_PLATFORM_WIN32_KHR
 //#define WINDOW_IMPLEMENTATION
-//#define ENABLE_MULTITOUCH
 
+//==========================Win32===============================
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 
 #ifndef WINDOW_WIN32
 #define WINDOW_WIN32
 
+#define ENABLE_MULTITOUCH //1kb
+#define ENABLE_GAMEPAD    //2kb
+
 #include "WindowBase.h"
 #include <windowsx.h>  // Mouse
 #include <assert.h>
 #include <ShellScalingApi.h> // for GetDpiForWindow
+#include <Xinput.h>          // for Gamepad
 
 #define MIN(a,b) ((a<b)?(a):(b))
 #define MAX(a,b) ((a>b)?(a):(b))
-
 
 // Convert native Win32 keyboard scancode to cross-platform USB HID code.
 const unsigned char WIN32_TO_HID[256] = {
@@ -60,6 +61,9 @@ public:
     float GetDisplayScale();
     void ShowImage(uint32_t* buf, uint32_t width, uint32_t height);
     void SetCursor(eCursor id);
+
+    void DetectGamepads();
+    void ReadGamepadEvents();
 };
 //==============================================================
 #endif
@@ -271,6 +275,8 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
         }
         DispatchMessage(&msg);
     }
+
+    ReadGamepadEvents();
     return {EventType::NONE};
 }
 
@@ -346,6 +352,74 @@ void Window_win32::ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {  
 void Window_win32::SetCursor(eCursor id) {      // Override mouse cursor,
     if(inClientArea) ::SetCursor(cursors[id]);  // but not on window edges
 }
+
+//---- Gamepads ----
+#ifdef ENABLE_GAMEPAD
+void Window_win32::DetectGamepads() {
+    static DWORD last_time = 0;
+    DWORD curr_time = GetTickCount();
+    if(curr_time - last_time < 1000) return; // Only check once per second
+    last_time = curr_time;
+
+    for (DWORD i = 0; i < MAX_GAMEPADS; i++) {
+        XINPUT_STATE state;
+        Gamepad& pad = gamepad[i];
+        bool active = (XInputGetState(i, &state) == ERROR_SUCCESS);
+        if(active != pad.active) {
+            snprintf(pad.name, sizeof(pad.name), "Gamepad_%d", i);  // Cant get proper name from xinput
+            eventFIFO.push(GPadConnect(i, active));
+        }
+    }
+}
+
+void Window_win32::ReadGamepadEvents() {
+    DetectGamepads();
+    for (DWORD i = 0; i < MAX_GAMEPADS; i++) {
+        Gamepad& pad = gamepad[i];
+        if(!pad.active) continue;
+        XINPUT_STATE state;
+        if (XInputGetState(i, &state) != ERROR_SUCCESS) continue;
+
+        auto btnCheck = [&](eGamepadBtn btn, bool isDown) {
+            if(pad.buttons[btn] == isDown) return;
+            eventFIFO.push(GPadButton(i, btn, isDown));
+        };
+
+        WORD buttons = state.Gamepad.wButtons;
+        btnCheck(eBTN_A,      buttons & XINPUT_GAMEPAD_A);
+        btnCheck(eBTN_B,      buttons & XINPUT_GAMEPAD_B);
+        btnCheck(eBTN_X,      buttons & XINPUT_GAMEPAD_X);
+        btnCheck(eBTN_Y,      buttons & XINPUT_GAMEPAD_Y);
+        btnCheck(eBTN_TL,     buttons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+        btnCheck(eBTN_TR,     buttons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+        btnCheck(eBTN_THUMBL, buttons & XINPUT_GAMEPAD_LEFT_THUMB);
+        btnCheck(eBTN_THUMBR, buttons & XINPUT_GAMEPAD_RIGHT_THUMB);
+        btnCheck(eBTN_SELECT, buttons & XINPUT_GAMEPAD_BACK);
+        btnCheck(eBTN_START,  buttons & XINPUT_GAMEPAD_START);
+      //btnCheck(eBTN_MODE,   buttons & XINPUT_GAMEPAD_GUIDE);
+        btnCheck(eDPAD_UP,    buttons & XINPUT_GAMEPAD_DPAD_UP);
+        btnCheck(eDPAD_DOWN,  buttons & XINPUT_GAMEPAD_DPAD_DOWN);
+        btnCheck(eDPAD_LEFT,  buttons & XINPUT_GAMEPAD_DPAD_LEFT);
+        btnCheck(eDPAD_RIGHT, buttons & XINPUT_GAMEPAD_DPAD_RIGHT);
+
+        auto axisCheck = [&](eGamepadAxis axis, float val) {
+            if(pad.axes[axis] == val) return;
+            eventFIFO.push(GPadAxis(i, axis, val));
+        };
+
+        axisCheck(eAXIS_LX, state.Gamepad.sThumbLX / 32767.f);
+        axisCheck(eAXIS_LY, state.Gamepad.sThumbLY / 32767.f);
+        axisCheck(eAXIS_RX, state.Gamepad.sThumbRX / 32767.f);
+        axisCheck(eAXIS_RY, state.Gamepad.sThumbRY / 32767.f);
+        axisCheck(eAXIS_TL, state.Gamepad.bLeftTrigger / 255.f);
+        axisCheck(eAXIS_TR, state.Gamepad.bRightTrigger / 255.f);
+    }
+}
+#else
+    void Window_win32::DetectGamepads() {}
+    void Window_win32::ReadGamepadEvents(){}
+#endif
+//------------------
 
 #endif  // WINDOW_IMPLEMENTATION
 

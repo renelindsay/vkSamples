@@ -22,10 +22,11 @@
 typedef unsigned int uint;
 
 enum eAction { eUP, eDOWN, eMOVE };  // keyboard / mouse / touchscreen actions
+enum eCursor{eArrow, eCaret, eRezizeAll, eResizeNS, eResizeEW, eResizeNESW, eResizeNWSE, eHand, eWait, eProgress, eNotAllowed};
 
 //========================Event Message=========================
 struct EventType {
-    enum Tag{NONE, MOUSE, KEY, TEXT, MOVE, RESIZE, FOCUS, TOUCH, CLOSE, JS_CONNECT, JS_BUTTON, JS_AXIS, UNKNOWN} tag; // event type
+    enum Tag{NONE, MOUSE, KEY, TEXT, MOVE, RESIZE, FOCUS, TOUCH, CLOSE, GPAD_CONNECT, GPAD_BUTTON, GPAD_AXIS, UNKNOWN} tag; // event type
     union {
         struct {eAction action; int16_t x; int16_t y; uint8_t btn;} mouse;       // mouse move/click
         struct {eAction action; eKeycode keycode;                 } key;         // Keyboard key state
@@ -34,9 +35,9 @@ struct EventType {
         struct {uint16_t width; uint16_t height;                  } resize;      // Window resize
         struct {bool has_focus;                                   } focus;       // Window gained/lost focus
         struct {eAction action; float x; float y; uint8_t id;     } touch;       // multi-touch display
-        struct {uint8_t jid; bool active;                         } js_connect;  // Joystick connect/disconnect
-        struct {uint8_t jid; eAction action; uint8_t btn;         } js_button;   // Joystick button state
-        struct {uint8_t jid; uint8_t axis; int16_t val;           } js_axis;     // Joystick axis value
+        struct {uint8_t pad; bool active;                         } gp_connect;  // Gamepad connect/disconnect
+        struct {uint8_t pad; uint8_t btn;  bool down;             } gp_button;   // Gamepad button state
+        struct {uint8_t pad; uint8_t axis; float val;             } gp_axis;     // Gamepad axis value
         struct {                                                  } close;       // Window is closing
     };
     void Clear() { tag = NONE; }
@@ -89,13 +90,22 @@ class CMTouch {
     }
 };
 //==============================================================
-enum eCursor{eArrow, eCaret, eRezizeAll, eResizeNS, eResizeEW, eResizeNESW, eResizeNWSE, eHand, eWait, eProgress, eNotAllowed};
+//========================== Gamepad ===========================
+const int MAX_GAMEPADS = 4;
+struct Gamepad {
+    bool  active = false;
+    char  name[128]   = {};
+    bool  buttons[16] = {};
+    float axes[8]     = {};
+};
+//==============================================================
 //======================Window base class=======================
 class WindowBase {
     struct {int16_t x; int16_t y;}mousepos = {};                               // mouse position
     bool m_btnstate[6]   = {};                                                 // mouse btn state
     bool m_keystate[256] = {};                                                 // keyboard state
-
+  protected:
+    Gamepad gamepad[MAX_GAMEPADS];                                             // gamepad state
   protected:
     EventFIFO eventFIFO;                                                       // Event message queue buffer
     EventType MouseEvent (eAction action, int16_t x, int16_t y, uint8_t btn);  // Mouse event
@@ -104,9 +114,9 @@ class WindowBase {
     EventType MoveEvent  (int16_t x, int16_t y);                               // Window moved
     EventType ResizeEvent(uint16_t width, uint16_t height);                    // Window resized
     EventType FocusEvent (bool has_focus);                                     // Window gained/lost focus   
-    EventType JSConnect(uint8_t jid, bool active);                             // Joystick connect/disconnect
-    EventType JSButton(uint8_t jid, eAction action, uint8_t btn);              // Joystick button events
-    EventType JSAxis(uint8_t jid, uint8_t axis, int16_t val);                  // Joystick axis events
+    EventType GPadConnect(uint8_t pad, bool active);                           // Gamepad connect/disconnect
+    EventType GPadButton (uint8_t pad, uint8_t btn, bool down);                // Gamepad button event
+    EventType GPadAxis   (uint8_t pad, uint8_t axis, float val);               // Gamepad axis events
     EventType CloseEvent ();                                                   // Window closing
 
     float m_display_scale = 1.f;
@@ -123,12 +133,19 @@ class WindowBase {
     virtual void Close() { eventFIFO.push(CloseEvent()); }
 
     //--State query functions--
-    void GetWinPos  (int16_t& x, int16_t& y) { x = shape.x; y = shape.y; }
-    void GetWinSize (int16_t& width, int16_t& height) { width = shape.width; height = shape.height; }
-    void GetWinSize (int32_t& width, int32_t& height) { width = shape.width; height = shape.height; }
-    bool GetKeyState(eKeycode key) { return m_keystate[key]; }                      // returns true if key is pressed
-    bool GetBtnState(uint8_t  btn) { return (btn < 6) ? m_btnstate[btn] : 0; }      // returns true if mouse btn is pressed
-    void GetMousePos(int16_t& x, int16_t& y) {x = mousepos.x; y = mousepos.y;}    // returns mouse x,y position
+    void  GetWinPos  (int16_t& x, int16_t& y) { x = shape.x; y = shape.y; }
+    void  GetWinSize (int16_t& width, int16_t& height) { width = shape.width; height = shape.height; }
+    void  GetWinSize (int32_t& width, int32_t& height) { width = shape.width; height = shape.height; }
+    bool  GetKeyState(eKeycode key) { return m_keystate[key]; }                               // return true if key is pressed
+    bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? m_btnstate[btn] : 0; }               // return true if mouse btn is pressed
+    void  GetMousePos(int16_t& x, int16_t& y) {x = mousepos.x; y = mousepos.y;}               // return mouse x,y position
+    Gamepad& GetGamepad(uint8_t pad) {return gamepad[pad];}                                   // return the gamepad state
+
+    //bool  GetGpadActive   (uint8_t pad) {return gamepad[pad].active;}                         // return true if gamepad is connected
+    //char* GetGpadName     (uint8_t pad) {return gamepad[pad].name;}                           // return gamepad's name
+    //bool  GetGPadBtnState (uint8_t pad, eGamepadBtn btn) {return gamepad[pad].buttons[btn];}  // return true if gamepad btn is pressed
+    //float GetGPadAxisState(uint8_t pad, eGamepadAxis axis) {return gamepad[pad].axes[axis];}  // return gamepad axis/trigger value
+
     bool IsRunning() { return m_running; }
     uint Width() {return shape.width;}
     uint Height(){return shape.height;}
@@ -164,9 +181,9 @@ class WindowBase {
     virtual void OnResizeEvent(uint16_t width, uint16_t height) {}                   // Callback for window resize events
     virtual void OnFocusEvent(bool hasFocus) {}                                      // Callback for window gain/lose focus events
     virtual void OnTouchEvent(eAction action, float x, float y, uint8_t id) {}       // Callback for Multi-touch events
-    virtual void OnJSConnect(uint8_t jid, bool active){}                             // Callback for Joystick connect/disconnect
-    virtual void OnJSButton(uint8_t jid, eAction action, uint8_t btn){}              // Callback for Joystick button events
-    virtual void ONJSAxis(uint8_t jid, uint8_t axis, int16_t val){}                  // Callback for Joystick axis events
+    virtual void OnGPadConnect(uint8_t pad, bool active){}                           // Callback for Joystick connect/disconnect
+    virtual void OnGPadButton(uint8_t pad, uint8_t btn, bool down){}                 // Callback for Joystick button events
+    virtual void OnGPadAxis(uint8_t pad, uint8_t axis, float val){}                  // Callback for Joystick axis events
     virtual void OnCloseEvent() {}                                                   // Callback for window closing event
 };
 //==============================================================

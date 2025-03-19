@@ -1,6 +1,12 @@
 //#define VK_USE_PLATFORM_XCB_KHR
 //#define WINDOW_IMPLEMENTATION
 
+//============================XCB===============================
+#ifdef VK_USE_PLATFORM_XCB_KHR
+
+#ifndef WINDOW_XCB
+#define WINDOW_XCB
+
 #define ENABLE_MULTITOUCH
 #define ENABLE_XCB_IMAGE
 #define ENABLE_XCB_CURSOR
@@ -8,11 +14,6 @@
 //#define ENABLE_JOYSTICK //old method (missing features: rumble, menu-btn)
 #define ENABLE_GAMEPAD    //new method (requires libevdev-dev)
 
-//============================XCB===============================
-#ifdef VK_USE_PLATFORM_XCB_KHR
-
-#ifndef WINDOW_XCB
-#define WINDOW_XCB
 
 //-------------------------------------------------
 #include "WindowBase.h"
