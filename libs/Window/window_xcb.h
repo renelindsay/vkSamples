@@ -8,12 +8,9 @@
 #define WINDOW_XCB
 
 #define ENABLE_MULTITOUCH
-#define ENABLE_XCB_IMAGE
-#define ENABLE_XCB_CURSOR
-
-//#define ENABLE_JOYSTICK //old method (missing features: rumble, menu-btn)
-#define ENABLE_GAMEPAD    //new method (requires libevdev-dev)
-
+#define ENABLE_XCB_IMAGE   // requires libxcb-image0-dev
+#define ENABLE_XCB_CURSOR  // requires libxcb-cursor-dev
+#define ENABLE_GAMEPAD     // requires libevdev-dev
 
 //-------------------------------------------------
 #include "WindowBase.h"
@@ -30,43 +27,18 @@
 #ifdef ENABLE_XCB_CURSOR
 #include <xcb/xcb_cursor.h>       // mouse cursor icons
 #endif
-
-#define MAX_GAMEPADS 4
-
 #ifdef ENABLE_GAMEPAD
 #include <libevdev/libevdev.h>    // libevdev-dev
-#include <fcntl.h>                // joystick open
-#include <unistd.h>               // joystick read
-#include <sys/inotify.h>          // joystick inotify
-#endif
+#include <fcntl.h>                // gamepad open
+#include <unistd.h>               // gamepad read
+#include <sys/inotify.h>          // gamepad inotify
+#include <dirent.h>               // For scanning the /dev/input/ directory
 
-#ifdef ENABLE_JOYSTICK
-#include <linux/joystick.h>
-#include <fcntl.h>                // joystick open
-#include <unistd.h>               // joystick read
-//#include <sys/stat.h>             // joystick stat
-#include <sys/inotify.h>          // joystick inotify
+#include <sys/ioctl.h>
+#include <linux/input.h>
+
 #endif
 //-------------------------------------------------
-
-#ifdef ENABLE_JOYSTICK
-struct Gamepad {
-    int  fd = -1;
-    int  axes[ABS_CNT] = {0};
-    bool buttons[KEY_MAX] = {};
-    char name[128] = {0};
-};
-#endif
-
-#ifdef ENABLE_GAMEPAD
-struct Gamepad {
-    int fd = -1;
-    libevdev* dev = nullptr;
-    char name[128] = {0};
-    int buttons[32] = {0};
-    int axes[8] = {0};
-};
-#endif
 
 #ifdef ENABLE_MULTITOUCH
 #include <X11/extensions/XInput2.h>  // MultiTouch
@@ -149,24 +121,36 @@ class Window_xcb : public WindowBase {
     xcb_cursor_t cursors[12];
 #endif
     //------------------
-    //---- Joystick ----
-#if defined(ENABLE_JOYSTICK) || defined(ENABLE_GAMEPAD)
-    int inotify_fd = -1;             // gamepad inotify descriptor
-    int watch_fd   = -1;             // gamepad watch descriptor
-    Gamepad gamepads[MAX_GAMEPADS];  // max gamepads
-    void DetectGamepads();
-    void ReadGamepadEvents();
+    //---- Gamepad ----
+#ifdef ENABLE_GAMEPAD
+    int inotify_fd = -1;          // gamepad inotify descriptor
+    int watch_fd   = -1;          // gamepad watch descriptor
+    struct Evdev {                // gamepad handle and axis ranges
+        int fd = -1;
+        libevdev* dev = nullptr;
+        char name[256] = {};      // gamepad model name
+        char path[256] = {};      // eg. /dev/input/event240
+        struct Limits {
+            int min =0;           // Axis range min value
+            int max =0;           // Axis range max value
+            int fuzz=0;           // Noise level
+            int flat=0;           // Dead zone
+            int prev=0;           // previous value
+        }axis[11];
+    } evdev[MAX_GAMEPADS];
+
+    void DetectGamepads();                           // Detect connected gamepads
+    bool ConnectGamepad(const char* path);           // eg. /dev/input/event240
+    void DisconnectGamepad(uint8_t id);              // Disconnect gamepad by id (0-3)
+    void SetGamepadLEDs(uint8_t id, uint8_t state);  // pad-id(0-3), led-bitmask(0-15)
+    void ReadGamepadEvents();                        // Process all gamepad events
 #else
     void DetectGamepads(){};
+    bool ConnectGamepad(const char* path){};
+    void DisconnectGamepad(uint8_t id){};
+    void SetGamepadLEDs(uint8_t id, uint8_t state){};
     void ReadGamepadEvents(){};
 #endif
-/*
-#ifdef ENABLE_GAMEPAD
-    void SetGamepadRumble(int index, uint16_t weak, uint16_t strong);
-#else
-    void SetGamepadRumble(int index, uint16_t weak, uint16_t strong){};
-#endif
-*/
     //------------------
 
     bool InitTouch();                                        // Returns false if no touch-device was found.
@@ -292,8 +276,6 @@ void Window_xcb::Create(const char* title, uint width, uint height) {
 #endif
     //----------------------
 
-    DetectGamepads();
-
     //----Map the window----
     xcb_map_window(xcb_connection, xcb_window);
     xcb_flush(xcb_connection);
@@ -319,7 +301,8 @@ Window_xcb::~Window_xcb() {
     for(int i=0; i<cnt; ++i) xcb_free_cursor(xcb_connection, cursors[i]);
     xcb_cursor_context_free(cursor_ctx);
 #endif
-#ifdef ENABLE_JOYSTICK
+#ifdef ENABLE_GAMEPAD
+    for (int i = 0; i < MAX_GAMEPADS; ++i) { DisconnectGamepad(i); }
     if (watch_fd   != -1) { inotify_rm_watch(inotify_fd, watch_fd); watch_fd=-1;}
     if (inotify_fd != -1) { close(inotify_fd); inotify_fd=-1; }
 #endif
@@ -433,10 +416,10 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
         case XCB_BUTTON_RELEASE: return MouseEvent(eUP  , mx, my, btn);         // mouse btn release
         case XCB_KEY_PRESS:{
             //printf("btn %d", btn);
-            uint8_t keycode = EVDEV_TO_HID[btn];                      // On Stratus XL gamepad, 2 buttons trigger keyboard events
-            if(!keycode) {                                            // remap key to joystick btn
-                if(btn==166) return JSButton(0, eDOWN, eBTN_SELECT);  // Steelseries Stratus XL: select button
-                if(btn==180) return JSButton(0, eDOWN, eBTN_MODE);    // Steelseries Stratus XL: mode button
+            uint8_t keycode = EVDEV_TO_HID[btn];                    // On Stratus XL gamepad, 2 buttons trigger keyboard events
+            if(!keycode) {                                          // remap key to gamepad btn
+                if(btn==166) return GPadButton(0, eBTN_SELECT, 1);  // Steelseries Stratus XL: select button (XF86Back)
+                if(btn==180) return GPadButton(0, eBTN_MODE, 1);    // Steelseries Stratus XL: mode button   (XF86HomePage)
             }
             xkb_state_key_get_utf8(k_state,btn,buf,sizeof(buf));
             xkb_state_update_key(k_state,btn,XKB_KEY_DOWN);
@@ -446,9 +429,9 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
         case XCB_KEY_RELEASE: {
             xkb_state_update_key(k_state, btn, XKB_KEY_UP);
             uint8_t keycode = EVDEV_TO_HID[btn];
-            if(!keycode) {                                          // remap key to joystick btn
-                if(btn==166) return JSButton(0, eUP, eBTN_SELECT);  // Steelseries Stratus XL
-                if(btn==180) return JSButton(0, eUP, eBTN_MODE);    // Steelseries Stratus XL
+            if(!keycode) {                                          // remap key to gamepad btn
+                if(btn==166) return GPadButton(0, eBTN_SELECT, 0);  // Steelseries Stratus XL
+                if(btn==180) return GPadButton(0, eBTN_MODE, 0);    // Steelseries Stratus XL
             }
             return KeyEvent(eUP, keycode);                                      // key released event
         }
@@ -566,113 +549,27 @@ void Window_xcb::SetCursor(eCursor id) {
 #endif
 }
 
-//---Joystick---
-#ifdef ENABLE_JOYSTICK
-void Window_xcb::DetectGamepads() {
-    // Add a watch for new input devices
-    if (inotify_fd == -1) {
-        inotify_fd = inotify_init1(IN_NONBLOCK);
-        if (inotify_fd < 0) { perror("inotify_init1"); return; }
-        watch_fd = inotify_add_watch(inotify_fd, "/dev/input/", IN_CREATE | IN_DELETE);
-    }
-    // Check for inotify events
-    char buffer[1024];
-    int len = read(inotify_fd, buffer, sizeof(buffer));
-    if (len > 0) {
-        for (char* ptr = buffer; ptr < buffer + len;) {
-            struct inotify_event* event = (struct inotify_event*) ptr;
-            ptr += sizeof(struct inotify_event) + event->len;
-
-            if (event->mask & IN_CREATE || event->mask & IN_DELETE) {
-                if (strncmp(event->name, "js", 2) == 0) {  // look for js#
-                    int index = atoi(event->name + 2);
-                    if (index > MAX_GAMEPADS) return;
-                    Gamepad& pad = gamepads[index];
-                    char path[32];
-                    snprintf(path, sizeof(path), "/dev/input/%s", event->name);
-
-                    if (event->mask & IN_CREATE) {  // connected
-                        usleep(60000);
-                        int fd = open(path, O_RDONLY | O_NONBLOCK);
-                        if (fd < 0) {perror("Gamepad open"); continue;}
-                        if(fd >= 0) {
-                            pad.fd = fd;
-                            ioctl(fd, JSIOCGNAME(sizeof(pad.name)), pad.name);
-                            eventFIFO.push(JSConnect(index, true));
-                            //printf("Gamepad %d connected: Name=%s\n", index, pad.name);
-                        }
-                    }
-                    if (event->mask & IN_DELETE) {  // disconneted
-                        eventFIFO.push(JSConnect(index, false));
-                        //printf("Gamepad %d disconnected\n", index);
-                        close(pad.fd);
-                        pad.fd = -1;
-                        pad.name[0] = '\0';
-                    }
-                }
-            }
-        }
-    }
-}
-
-/*
-void Window_xcb::DetectGamepads() {  // polling (slow)
-    static char path[] = "/dev/input/js0";
-    for (int i = 0; i < 4; ++i) {
-        path[13] = '0'+i;
-        Gamepad& pad = gamepads[i];
-        if(pad.fd>0) {  // check if still connected
-            struct stat st;
-            if(stat(path, &st) !=0) {
-                //printf("gamepad %d disconnected\n",i);
-                close(pad.fd);
-                pad.fd = -1;
-                pad.name[0] = '\0';
-            }
-            continue;
-        }
-        int fd = open(path, O_RDONLY | O_NONBLOCK);
-        if (fd < 0) continue;
-        pad.fd = fd;
-        ioctl(fd, JSIOCGNAME(sizeof(pad.name)), pad.name);
-        //printf("gamepad %d connected: Name=%s\n", i, pad.name);
-    }
-}
-*/
-
-void Window_xcb::ReadGamepadEvents() {
-    DetectGamepads();
-    for(int i=0; i<MAX_GAMEPADS; i++) {  // max 4 joysticks
-        Gamepad& pad = gamepads[i];
-        if(pad.fd<0) continue;
-        struct js_event e;
-        while(read(pad.fd, &e, sizeof(e)) > 0) {
-            e.type &= ~JS_EVENT_INIT;
-            if (e.type == JS_EVENT_BUTTON) {
-                pad.buttons[e.number] = e.value;
-                eAction action = e.value?eDOWN:eUP;
-                eventFIFO.push(JSButton(i, action, e.number));
-                //printf("js_btn:%d=%d\n", e.number, e.value);
-            }else if (e.type == JS_EVENT_AXIS) {
-                pad.axes[e.number] = e.value;
-                eventFIFO.push(JSAxis(i, e.number, e.value));
-                //printf("js_axis:%d=%d\n", e.number, e.value);
-            }
-        }
-    }
-}
-#endif
-//-------------
-
 //---Gamepad---
 #ifdef ENABLE_GAMEPAD
 void Window_xcb::DetectGamepads() {
     if (inotify_fd == -1) {
+        // Scan for already connected gamepads
+        DIR* dir = opendir("/dev/input/");
+        if(dir) {
+            dirent* entry;
+            while ((entry = readdir(dir))) {
+                if (strncmp(entry->d_name, "event", 5) == 0) { // Look for "event#"
+                    char path[512]{};
+                    snprintf(path, sizeof(path), "/dev/input/%s", entry->d_name);
+                    ConnectGamepad(path);
+                }
+            }
+        }
+        // Watch for new device connections using inotify
         inotify_fd = inotify_init1(IN_NONBLOCK);
         if (inotify_fd < 0) { perror("inotify_init1"); return; }
-        watch_fd = inotify_add_watch(inotify_fd, "/dev/input/", IN_CREATE | IN_DELETE);
+        watch_fd = inotify_add_watch(inotify_fd, "/dev/input/", IN_CREATE);
     }
-
     // Process inotify events
     char buffer[1024];
     int len = read(inotify_fd, buffer, sizeof(buffer));
@@ -680,100 +577,111 @@ void Window_xcb::DetectGamepads() {
         for (char* ptr = buffer; ptr < buffer + len;) {
             struct inotify_event* event = (struct inotify_event*)ptr;
             ptr += sizeof(struct inotify_event) + event->len;
-
-            if (event->mask & (IN_CREATE | IN_DELETE)) {
+            if (event->mask & (IN_CREATE)) {
                 if (strncmp(event->name, "event", 5) == 0) {  // Look for "eventX"
-                    //int index = atoi(event->name + 2);
-                    //if (index > MAX_GAMEPADS) return;
-                    //Gamepad& pad = gamepads[index];
-                    char path[64];
+                    char path[256]{};
                     snprintf(path, sizeof(path), "/dev/input/%s", event->name);
-
-                    if (event->mask & IN_CREATE) {  // Device connected
-                        usleep(60000);  // Allow time for the device to appear
-                        int fd = open(path, O_RDONLY | O_NONBLOCK);
-                        if (fd < 0) continue;
-
-                        struct libevdev* dev = nullptr;
-                        if (libevdev_new_from_fd(fd, &dev) < 0) {
-                            close(fd);
-                            continue;
-                        }
-
-                        if (!libevdev_has_event_type(dev, EV_ABS) && !libevdev_has_event_type(dev, EV_KEY)) {
-                            libevdev_free(dev);
-                            close(fd);
-                            continue;
-                        }
-
-                        // Assign to a free slot
-                        for (int i = 0; i < MAX_GAMEPADS; ++i) {
-                            Gamepad& pad = gamepads[i];
-                            if (pad.fd < 0) {
-                                pad.fd = fd;
-                                pad.dev = dev;
-                                strncpy(pad.name, libevdev_get_name(dev), sizeof(pad.name) - 1);
-                                eventFIFO.push(JSConnect(i, true));
-                                break;
-                            }
-                        }
-                    }
-
-                    if (event->mask & IN_DELETE) {  // Device disconnected
-                        for (int i = 0; i < MAX_GAMEPADS; ++i) {
-                            Gamepad& pad = gamepads[i];
-                            if (pad.fd >= 0 && strcmp(event->name, pad.name) == 0) {
-                                eventFIFO.push(JSConnect(i, false));
-                                libevdev_free(pad.dev);
-                                close(pad.fd);
-                                pad.fd = -1;
-                                pad.name[0] = '\0';
-                            }
-                        }
-                    }
+                    usleep(60000);         // Allow time for the device to appear
+                    ConnectGamepad(path);  // Try to connect as Gamepad
                 }
             }
         }
     }
 }
-/*
+
+void setGamepadLED(const char* devicePath, int LED_id, bool state) {
+    int fd = open(devicePath, O_WRONLY);
+    if(fd<0) return;
+    struct input_event event;
+    event.type = EV_LED;
+    event.code = LED_id;
+    event.value = state ? 1 : 0;
+    write(fd, &event, sizeof(event));
+    close(fd);
+}
+
+void Window_xcb::SetGamepadLEDs(uint8_t id, uint8_t state) {
+    setGamepadLED(evdev[id].path, 0, !!(state&1));
+    setGamepadLED(evdev[id].path, 1, !!(state&2));
+    setGamepadLED(evdev[id].path, 2, !!(state&4));
+    setGamepadLED(evdev[id].path, 3, !!(state&8));
+}
+
+bool Window_xcb::ConnectGamepad(const char* path) {
+    int fd = open(path, O_RDONLY | O_NONBLOCK);
+    if(fd<0) return false;
+    struct libevdev* dev = nullptr;
+    if (libevdev_new_from_fd(fd, &dev) >= 0) {
+        if (libevdev_has_event_type(dev, EV_ABS) && libevdev_has_event_type(dev, EV_KEY))  // make sure this is a gamepad
+        if (libevdev_has_event_code(dev, EV_KEY, BTN_SOUTH) && libevdev_has_event_code(dev, EV_ABS, ABS_X)) {
+            for (int i = 0; i < MAX_GAMEPADS; ++i) {  // find a free slot
+                Evdev& ev = evdev[i];
+                if(ev.fd < 0) {
+                    ev.fd = fd;
+                    ev.dev= dev;
+                    strncpy(ev.name, libevdev_get_name(dev), sizeof(ev.name)-1);
+                    strncpy(ev.path, path, sizeof(ev.path)-1);
+                    //printf("Gamepad %d found: %s at %s\n", i, ev.name, path);
+                    for(uint axis=0; axis<11; ++axis) {
+                        auto& ax = ev.axis[axis];
+                        ax.min  = libevdev_get_abs_minimum(dev,axis); // axis min value
+                        ax.max  = libevdev_get_abs_maximum(dev,axis); // axis max value
+                        ax.fuzz = libevdev_get_abs_fuzz   (dev,axis); // noise level
+                        ax.flat = libevdev_get_abs_flat   (dev,axis); // dead zone
+                        //printf("axis:%d min=%d max=%d fuzz=%d flat=%d\n", axis, ax.min, ax.max, ax.fuzz, ax.flat);
+                    }
+                    SetGamepadLEDs(i,1<<i);  // Set Gamepad LEDs to indicate which slot its in.
+                    eventFIFO.push(GPadConnect(i, true));
+                    return true;
+                }
+            }
+        } else {libevdev_free(dev); close(fd);}
+    } else close(fd);
+    return false;
+}
+
+void Window_xcb::DisconnectGamepad(uint8_t id) {
+    Evdev& ev = evdev[id];
+    if(ev.fd==-1) return;
+    eventFIFO.push(GPadConnect(id, false));
+    //SetGamepadLEDs(id, 0);  // Does not restore blinking :(
+    libevdev_free(ev.dev);
+    close(ev.fd);
+    ev.fd = -1;
+    ev.dev = 0;
+    ev.name[0] = '\0';
+    ev.path[0] = '\0';
+    memset(ev.axis, 0, sizeof(ev.axis));
+    //printf("Gamepad %d disconnected.\n", id);
+}
+
 int Gamepad_keymap(uint keycode) {
     switch (keycode) {
-        case BTN_A:      return eBTN_A;        // 304->1
-        case BTN_B:      return eBTN_B;        // 305->2
-        case BTN_C:      return eBTN_C;        // 306->3
-        case BTN_X:      return eBTN_X;        // 307->4
-        case BTN_Y:      return eBTN_Y;        // 308->5
-        case BTN_Z:      return eBTN_Z;        // 309->6
-        case BTN_TL:     return eBTN_TL;       // 310->7
-        case BTN_TR:     return eBTN_TR;       // 311->8
-        case BTN_TL2:    return eBTN_TL2;      // 312->9
-        case BTN_TR2:    return eBTN_TR2;      // 313->10
-        case BTN_SELECT: return eBTN_SELECT;   // 314->11
-        case BTN_START:  return eBTN_START;    // 315->12
-        case BTN_MODE:   return eBTN_MODE;     // 316->13
-        case BTN_THUMBL: return eBTN_THUMBL;   // 317->14
-        case BTN_THUMBR: return eBTN_THUMBR;   // 318->15
+        case BTN_A:      return eBTN_A;      // 304
+        case BTN_B:      return eBTN_B;      // 305
+        case BTN_X:      return eBTN_X;      // 307
+        case BTN_Y:      return eBTN_Y;      // 308
+        case BTN_TL:     return eBTN_TL;     // 310
+        case BTN_TR:     return eBTN_TR;     // 311
+        case BTN_SELECT: return eBTN_SELECT; // 314
+        case BTN_START:  return eBTN_START;  // 315
+        case BTN_MODE:   return eBTN_MODE;   // 316
+        case BTN_THUMBL: return eBTN_THUMBL; // 317
+        case BTN_THUMBR: return eBTN_THUMBR; // 318
         default:         return 0;
     }
-}
-*/
-int Gamepad_keymap(uint keycode) {  // convert keycode to eGamepadBtn enum:
-    uint ecode = keycode-303;       // remap range from 304-318 to 1-15.
-    if(ecode < 16) return ecode;    // return eGamepadBtn enum value
-    return 0;                       // return 0 for unknown buttons
 }
 
 int Gamepad_axismap(uint axiscode) {
     switch(axiscode) {
-        case 16: return eDPAD_EW;
-        case 17: return eDPAD_NS;
-        case 10: return eAXIS_TL;
-        case 9:  return eAXIS_TR;
-        case 0:  return eAXIS_LX;
-        case 1:  return eAXIS_LY;
-        case 2:  return eAXIS_RX;
-        case 5:  return eAXIS_RY;
+        case ABS_X    : return eAXIS_LX;  //  0
+        case ABS_Y    : return eAXIS_LY;  //  1
+        case ABS_RX   : return eAXIS_RX;  //  3
+        case ABS_RY   : return eAXIS_RY;  //  4
+        case ABS_Z    : return eAXIS_RX;  //  2  // alternative mapping
+        case ABS_RZ   : return eAXIS_RY;  //  5  // alternative mapping
+        case ABS_GAS  : return eAXIS_TR;  //  9
+        case ABS_BRAKE: return eAXIS_TL;  // 10
         default: return 0;
     }
 }
@@ -781,29 +689,68 @@ int Gamepad_axismap(uint axiscode) {
 void Window_xcb::ReadGamepadEvents() {
     DetectGamepads();
     for (int i=0; i<MAX_GAMEPADS; ++i) {
-        Gamepad& pad = gamepads[i];
-        if (pad.fd < 0 || !pad.dev) continue;
+        Evdev&   ev  = evdev[i];
+        Gamepad& pad = gamepad[i];
+        if (!pad.active) continue;
 
-        struct input_event ev;
-        while (libevdev_next_event(pad.dev, LIBEVDEV_READ_FLAG_NORMAL, &ev) == 0) {
-            if (ev.type == EV_KEY) {  // Button press/release
-                eAction action = ev.value ? eDOWN : eUP;
-                int btn = Gamepad_keymap(ev.code);
-                eventFIFO.push(JSButton(i, action, btn));
-                pad.buttons[ev.code] = ev.value;
+        auto Hat = [&](int val, int btnNeg, int btnPos) { // convert hat axis values to button events
+            if((val!=-1) && ( pad.buttons[btnNeg])) eventFIFO.push(GPadButton(i, btnNeg, 0));
+            if((val!= 1) && ( pad.buttons[btnPos])) eventFIFO.push(GPadButton(i, btnPos, 0));
+            if((val==-1) && (!pad.buttons[btnNeg])) eventFIFO.push(GPadButton(i, btnNeg, 1));
+            if((val== 1) && (!pad.buttons[btnPos])) eventFIFO.push(GPadButton(i, btnPos, 1));
+        };
+
+        auto isFuzz = [](int value, Evdev::Limits& a) -> bool {
+            int delta = abs(a.prev - value);
+            if(delta<a.fuzz) return true;
+            a.prev = value;
+            return false;
+        };
+
+        auto Trigger = [](int value, Evdev::Limits& a) -> float { // Apply dead-zone, normalize
+            int val   = std::max(value-a.min-a.flat,0);
+            int range = std::max(a.max-a.min-a.flat,1);
+            return val / (float)range;
+        };
+
+        auto Thumb = [](int value, Evdev::Limits& a) -> float { // Apply dead-zone, normalize
+            int sign = value<0?-1:1;
+            int val  = std::max(abs(value)-a.flat,0);
+            int range= std::max(a.max-a.flat,1);
+            return (val/(float)range)*sign;
+        };
+
+        int rc=0;
+        struct input_event event;
+        while ((rc=libevdev_next_event(ev.dev, LIBEVDEV_READ_FLAG_NORMAL, &event)) == 0) {
+            if (event.type == EV_KEY) {  // Button press/release
+                int btn = Gamepad_keymap(event.code);
+                eventFIFO.push(GPadButton(i, btn, event.value));
+                pad.buttons[event.code] = event.value;
             }
-            else if (ev.type == EV_ABS) {  // Analog axes
-                int axis = Gamepad_axismap(ev.code);
-                eventFIFO.push(JSAxis(i, axis, ev.value));
-                pad.axes[ev.code] = ev.value;
+            else if (event.type == EV_ABS) {  // Analog axes and hat buttons
+                if(event.code == ABS_HAT0X) {Hat(event.value, eDPAD_LEFT, eDPAD_RIGHT); continue;}
+                if(event.code == ABS_HAT0Y) {Hat(event.value, eDPAD_UP,   eDPAD_DOWN);  continue;}
+                if(event.code > 10) continue;
+
+                auto& limits = ev.axis[event.code];  // min,max,fuzz,flat
+                if(isFuzz(event.value, limits)) continue;  // defuzz
+                bool isTrigger = (limits.min==0 || event.code==ABS_GAS || event.code==ABS_BRAKE);
+                float fval = isTrigger? Trigger(event.value, limits)
+                                      : Thumb  (event.value, limits);
+                int axis = Gamepad_axismap(event.code);
+                if(pad.axes[axis] == fval) continue;             // deadzone
+                if(axis==eAXIS_LY || axis==eAXIS_RY) fval=-fval; // flip y axis
+                eventFIFO.push(GPadAxis(i, axis, fval));
             }
         }
+        if(rc==-ENODEV) DisconnectGamepad(i);
     }
 }
 
 /*
 // eg. SetGamepadRumble(0, 20000, 0);
-void Window_xcb::SetGamepadRumble(int index, uint16_t weak, uint16_t strong) {
+void Window_xcb::SetGamepadRumble(int index, uint16_t weak, uint16_t strong) {  // TODO
     if (index < 0 || index >= MAX_GAMEPADS || gamepads[index].fd < 0) return;
 
     struct ff_effect effect = {};

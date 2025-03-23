@@ -16,7 +16,7 @@ class MainWindow : public CWindow {  // Without Vulkan
     void OnMoveEvent  (int16_t x, int16_t y) { printf("Window Move: x=%d y=%d\n", x, y); }
     void OnFocusEvent (bool hasFocus) { printf("Focus: %s\n", hasFocus ? "True" : "False"); }
     void OnResizeEvent(uint16_t width, uint16_t height) { printf("Window Resize: width=%4d height=%4d\n", width, height); }
-    void OnGPadConnect(uint8_t pad, bool active){ printf("Gamepad %d %s: %s\n", pad, active?"connected":"disconnected", GetGamepad(pad).name); }
+    void OnGPadConnect(uint8_t pad, bool active){ printf("Gamepad %d %s\n", pad, active?"connected":"disconnected"); }
     void OnGPadButton (uint8_t pad, uint8_t btn, bool down){printf("Gamepad button %d %s\n", btn, down?"down":"up");}
     void OnGPadAxis   (uint8_t pad, uint8_t axis, float val){printf("Gamepad axis %d : %.2f\n", axis, val);}
     void OnCloseEvent () { printf("Window Closing.\n"); }

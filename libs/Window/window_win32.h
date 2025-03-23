@@ -365,10 +365,7 @@ void Window_win32::DetectGamepads() {
         XINPUT_STATE state;
         Gamepad& pad = gamepad[i];
         bool active = (XInputGetState(i, &state) == ERROR_SUCCESS);
-        if(active != pad.active) {
-            snprintf(pad.name, sizeof(pad.name), "Gamepad_%d", i);  // Cant get proper name from xinput
-            eventFIFO.push(GPadConnect(i, active));
-        }
+        if(active != pad.active) eventFIFO.push(GPadConnect(i, active));
     }
 }
 

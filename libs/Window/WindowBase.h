@@ -94,7 +94,6 @@ class CMTouch {
 const int MAX_GAMEPADS = 4;
 struct Gamepad {
     bool  active = false;
-    char  name[128]   = {};
     bool  buttons[16] = {};
     float axes[8]     = {};
 };
@@ -140,11 +139,6 @@ class WindowBase {
     bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? m_btnstate[btn] : 0; }               // return true if mouse btn is pressed
     void  GetMousePos(int16_t& x, int16_t& y) {x = mousepos.x; y = mousepos.y;}               // return mouse x,y position
     Gamepad& GetGamepad(uint8_t pad) {return gamepad[pad];}                                   // return the gamepad state
-
-    //bool  GetGpadActive   (uint8_t pad) {return gamepad[pad].active;}                         // return true if gamepad is connected
-    //char* GetGpadName     (uint8_t pad) {return gamepad[pad].name;}                           // return gamepad's name
-    //bool  GetGPadBtnState (uint8_t pad, eGamepadBtn btn) {return gamepad[pad].buttons[btn];}  // return true if gamepad btn is pressed
-    //float GetGPadAxisState(uint8_t pad, eGamepadAxis axis) {return gamepad[pad].axes[axis];}  // return gamepad axis/trigger value
 
     bool IsRunning() { return m_running; }
     uint Width() {return shape.width;}

@@ -160,14 +160,10 @@ enum eGamepadBtn {
     eBTN_UNKNOWN,
     eBTN_A,
     eBTN_B,
-  //eBTN_C,
     eBTN_X,
     eBTN_Y,
-  //eBTN_Z,
     eBTN_TL,
     eBTN_TR,
-  //eBTN_TL2,
-  //eBTN_TR2,
     eBTN_THUMBL,
     eBTN_THUMBR,
     eDPAD_UP,
@@ -176,13 +172,11 @@ enum eGamepadBtn {
     eDPAD_RIGHT,
     eBTN_SELECT,
     eBTN_START,
-    eBTN_MODE
+    eBTN_MODE    //Warning: Launches Steam on Windows
 };
 
 enum eGamepadAxis {
     eAXIS_UNKNOWN,
-  //eDPAD_EW,
-  //eDPAD_NS,
     eAXIS_TL,
     eAXIS_TR,
     eAXIS_LX,
