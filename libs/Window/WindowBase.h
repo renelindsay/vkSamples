@@ -11,8 +11,8 @@
 #define WINDOWBASE_H
 
 //#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
+#include <cstring>
+#include <cstdint>
 #include <string>
 
 #include "Logging.h"
@@ -22,7 +22,7 @@
 typedef unsigned int uint;
 
 enum eAction { eUP, eDOWN, eMOVE };  // keyboard / mouse / touchscreen actions
-enum eCursor{eArrow, eCaret, eRezizeAll, eResizeNS, eResizeEW, eResizeNESW, eResizeNWSE, eHand, eWait, eProgress, eNotAllowed};
+enum eCursor{eArrow, eCaret, eResizeAll, eResizeNS, eResizeEW, eResizeNESW, eResizeNWSE, eHand, eWait, eProgress, eNotAllowed};
 
 //========================Event Message=========================
 struct EventType {
@@ -51,9 +51,9 @@ class EventFIFO {
 
   public:
     EventFIFO() : head(0), tail(0) {}
-    bool isEmpty() { return head == tail; }                                                    // Check if queue is empty.
-    void push(EventType const& item) { ++head; buf[head %= SIZE] = item; }                     // Add item to queue
-    EventType* pop() { if (head == tail) return nullptr; ++tail; return &buf[tail %= SIZE]; }  // Returns item ptr, or 0 if queue is empty
+    bool isEmpty() const { return head == tail; }                                          // Check if queue is empty.
+    void push(EventType const& item) { ++head; buf[head %= SIZE] = item; }                 // Add item to queue
+    EventType* pop() { if(isEmpty()) return nullptr; ++tail; return &buf[tail %= SIZE]; }  // Returns item ptr, or 0 if queue is empty
 };
 //==============================================================
 //=========================MULTI-TOUCH==========================
@@ -64,7 +64,7 @@ class CMTouch {
     CPointer Pointers[MAX_POINTERS]{};
 
   public:
-    int count;  // number of active touch-id's (Android only)
+    int count=0;  // number of active touch-id's (Android only)
     void Clear() { memset(this, 0, sizeof(*this)); }
 
     // Convert desktop-style touch-id's to an android-style finger-id.
@@ -155,7 +155,7 @@ class WindowBase {
     virtual void SetTitle(const char* title) {}
     virtual void SetWinPos (uint x, uint y) {}
     virtual void SetWinSize(uint w, uint h) {}
-    virtual const void* GetNativeHandle() const = 0;
+    virtual const void* GetNativeHandle() const = 0;              // For creating Vulkan/OpenGL Surface
     virtual void ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {}
     virtual void SetCursor(eCursor id) {};
 
@@ -165,7 +165,7 @@ class WindowBase {
     bool ProcessEvent (EventType e);                              // Dispatch/inject the given event to event handlers.
     bool PollEvents() { return ProcessEvents(false); }            // Run continuously
     bool WaitEvents() { return ProcessEvents(true ); }            // Pause app when there are no events to process
-    // void Run(){ while(ProcessEvents()){} }                              // Run message loop until window is closed.
+    // void Run(){ while(ProcessEvents()){} }                     // Run message loop until window is closed.
 
     //-- Virtual Functions as event handlers --
     virtual void OnMouseEvent(eAction action, int16_t x, int16_t y, uint8_t btn) {}  // Callback for mouse events

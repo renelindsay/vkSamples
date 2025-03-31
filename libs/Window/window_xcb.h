@@ -137,6 +137,8 @@ class Window_xcb : public WindowBase {
             int flat=0;           // Dead zone
             int prev=0;           // previous value
         }axis[11];
+        bool useDPad=false;       // Sony Dualshock hat emits dpad button events instead of HAT axis
+        bool SwapAB=false;        // Nintendo gamepads swap A and B buttons
     } evdev[MAX_GAMEPADS];
 
     void DetectGamepads();                           // Detect connected gamepads
@@ -144,12 +146,6 @@ class Window_xcb : public WindowBase {
     void DisconnectGamepad(uint8_t id);              // Disconnect gamepad by id (0-3)
     void SetGamepadLEDs(uint8_t id, uint8_t state);  // pad-id(0-3), led-bitmask(0-15)
     void ReadGamepadEvents();                        // Process all gamepad events
-#else
-    void DetectGamepads(){};
-    bool ConnectGamepad(const char* path){};
-    void DisconnectGamepad(uint8_t id){};
-    void SetGamepadLEDs(uint8_t id, uint8_t state){};
-    void ReadGamepadEvents(){};
 #endif
     //------------------
 
@@ -264,7 +260,7 @@ void Window_xcb::Create(const char* title, uint width, uint height) {
     xcb_cursor_context_new(xcb_connection, xcb_setup_roots_iterator(setup).data, &cursor_ctx);
     cursors[eCursor::eArrow]      = xcb_cursor_load_cursor(cursor_ctx, "left_ptr");
     cursors[eCursor::eCaret]      = xcb_cursor_load_cursor(cursor_ctx, "xterm");
-    cursors[eCursor::eRezizeAll]  = xcb_cursor_load_cursor(cursor_ctx, "fleur");
+    cursors[eCursor::eResizeAll]  = xcb_cursor_load_cursor(cursor_ctx, "fleur");
     cursors[eCursor::eResizeNS]   = xcb_cursor_load_cursor(cursor_ctx, "sb_v_double_arrow");
     cursors[eCursor::eResizeEW]   = xcb_cursor_load_cursor(cursor_ctx, "sb_h_double_arrow");
     cursors[eCursor::eResizeNESW] = xcb_cursor_load_cursor(cursor_ctx, "top_right_corner");
@@ -612,16 +608,28 @@ bool Window_xcb::ConnectGamepad(const char* path) {
     if(fd<0) return false;
     struct libevdev* dev = nullptr;
     if (libevdev_new_from_fd(fd, &dev) >= 0) {
-        if (libevdev_has_event_type(dev, EV_ABS) && libevdev_has_event_type(dev, EV_KEY))  // make sure this is a gamepad
-        if (libevdev_has_event_code(dev, EV_KEY, BTN_SOUTH) && libevdev_has_event_code(dev, EV_ABS, ABS_X)) {
+        if(libevdev_has_event_type(dev, EV_ABS)
+        && libevdev_has_event_type(dev, EV_KEY)
+        && libevdev_has_event_code(dev, EV_KEY, BTN_SOUTH)
+        && libevdev_has_event_code(dev, EV_KEY, BTN_NORTH)
+        && libevdev_has_event_code(dev, EV_KEY, BTN_EAST )
+        && libevdev_has_event_code(dev, EV_KEY, BTN_WEST )
+        && libevdev_has_event_code(dev, EV_ABS, ABS_X)
+        && libevdev_has_event_code(dev, EV_ABS, ABS_Y)) {  // make sure this is a gamepad
             for (int i = 0; i < MAX_GAMEPADS; ++i) {  // find a free slot
                 Evdev& ev = evdev[i];
+                ev.useDPad=(!libevdev_has_event_code(dev, EV_ABS, ABS_HAT0X));  // If HAT is missing, use DPad. (for Sony Dualshock)
                 if(ev.fd < 0) {
                     ev.fd = fd;
                     ev.dev= dev;
-                    strncpy(ev.name, libevdev_get_name(dev), sizeof(ev.name)-1);
+                    strncpy(ev.name, libevdev_get_name(dev), sizeof(ev.name)-1);               
                     strncpy(ev.path, path, sizeof(ev.path)-1);
                     //printf("Gamepad %d found: %s at %s\n", i, ev.name, path);
+
+                    ev.SwapAB=false;  // Nintendo swaps the A and B buttons
+                    if (ev.name && (strstr(ev.name, "Nintendo") || strstr(ev.name, "Switch")))         {ev.SwapAB = true;}
+                    if (ev.name && (strstr(ev.name, "Joy-Con")  || strstr(ev.name, "Pro Controller"))) {ev.SwapAB = true;}
+
                     for(uint axis=0; axis<11; ++axis) {
                         auto& ax = ev.axis[axis];
                         ax.min  = libevdev_get_abs_minimum(dev,axis); // axis min value
@@ -668,7 +676,13 @@ int Gamepad_keymap(uint keycode) {
         case BTN_MODE:   return eBTN_MODE;   // 316
         case BTN_THUMBL: return eBTN_THUMBL; // 317
         case BTN_THUMBR: return eBTN_THUMBR; // 318
-        default:         return 0;
+
+        // Sony Dualshock uses 4 DPad buttons, instead of HAT0X/Y axes:
+        case BTN_DPAD_UP   : return eDPAD_UP;    //0x220  for Dualshock
+        case BTN_DPAD_DOWN : return eDPAD_DOWN;  //0x221  for Dualshock
+        case BTN_DPAD_LEFT : return eDPAD_LEFT;  //0x222  for Dualshock
+        case BTN_DPAD_RIGHT: return eDPAD_RIGHT; //0x223  for Dualshock
+        default: return 0;
     }
 }
 
@@ -694,6 +708,7 @@ void Window_xcb::ReadGamepadEvents() {
         if (!pad.active) continue;
 
         auto Hat = [&](int val, int btnNeg, int btnPos) { // convert hat axis values to button events
+            //if(!ev.hasHat) return;
             if((val!=-1) && ( pad.buttons[btnNeg])) eventFIFO.push(GPadButton(i, btnNeg, 0));
             if((val!= 1) && ( pad.buttons[btnPos])) eventFIFO.push(GPadButton(i, btnPos, 0));
             if((val==-1) && (!pad.buttons[btnNeg])) eventFIFO.push(GPadButton(i, btnNeg, 1));
@@ -725,8 +740,9 @@ void Window_xcb::ReadGamepadEvents() {
         while ((rc=libevdev_next_event(ev.dev, LIBEVDEV_READ_FLAG_NORMAL, &event)) == 0) {
             if (event.type == EV_KEY) {  // Button press/release
                 int btn = Gamepad_keymap(event.code);
+                if(ev.SwapAB && btn<5){static int ABtoBA[]={0,2,1,4,3}; btn=ABtoBA[btn];}  // Swap A/B and X/Y (Nintendo)
+                if((event.code < BTN_DPAD_UP) || ev.useDPad)                               // Only use DPad if missing HAT (Sony)
                 eventFIFO.push(GPadButton(i, btn, event.value));
-                pad.buttons[event.code] = event.value;
             }
             else if (event.type == EV_ABS) {  // Analog axes and hat buttons
                 if(event.code == ABS_HAT0X) {Hat(event.value, eDPAD_LEFT, eDPAD_RIGHT); continue;}
@@ -770,7 +786,16 @@ void Window_xcb::SetGamepadRumble(int index, uint16_t weak, uint16_t strong) {  
     ioctl(gamepads[index].fd, EVIOCRMFF, effect.id); // Remove the effect
 }
 */
+
+#else
+    void Window_xcb::DetectGamepads(){};
+    bool Window_xcb::ConnectGamepad(const char* path){};
+    void Window_xcb::DisconnectGamepad(uint8_t id){};
+    void Window_xcb::SetGamepadLEDs(uint8_t id, uint8_t state){};
+    void Window_xcb::ReadGamepadEvents(){};
 #endif
+
+
 //-------------
 
 #endif  // WINDOW_IMPLEMENTATION

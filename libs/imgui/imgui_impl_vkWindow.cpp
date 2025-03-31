@@ -286,7 +286,7 @@ void ImGui_ImplvkWindow_UpdateMouseCursor() {
     switch (cursor_type) {
         case ImGuiMouseCursor_Arrow:      cursor = eArrow;      break;
         case ImGuiMouseCursor_TextInput:  cursor = eCaret;      break;
-        case ImGuiMouseCursor_ResizeAll:  cursor = eRezizeAll;  break;
+        case ImGuiMouseCursor_ResizeAll:  cursor = eResizeAll;  break;
         case ImGuiMouseCursor_ResizeNS:   cursor = eResizeNS;   break;
         case ImGuiMouseCursor_ResizeEW:   cursor = eResizeEW;   break;
         case ImGuiMouseCursor_ResizeNESW: cursor = eResizeNESW; break;

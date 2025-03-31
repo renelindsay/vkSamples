@@ -170,19 +170,19 @@ enum eGamepadBtn {
     eDPAD_DOWN,
     eDPAD_LEFT,
     eDPAD_RIGHT,
-    eBTN_SELECT,
+    eBTN_SELECT,  // Warning: Maps to Android's Back button. (Closes keyboard/app.)
     eBTN_START,
-    eBTN_MODE    //Warning: Launches Steam on Windows
+    eBTN_MODE     // Warning: Windows/Linux: Launch Steam. Android: Maps to Home btn. (Closes app.)
 };
 
 enum eGamepadAxis {
     eAXIS_UNKNOWN,
-    eAXIS_TL,
-    eAXIS_TR,
-    eAXIS_LX,
-    eAXIS_LY,
-    eAXIS_RX,
-    eAXIS_RY
+    eAXIS_TL,  // left trigger      0to1
+    eAXIS_TR,  // right trigger     0to1
+    eAXIS_LX,  // left thumbstick  -1to1 (right is positive)
+    eAXIS_LY,  // left thumbstick  -1to1 (up is positive)
+    eAXIS_RX,  // right thumbstick -1to1 (right is positive)
+    eAXIS_RY   // right thumbstick -1to1 (up is positive)
 };
 
 // clang-format on

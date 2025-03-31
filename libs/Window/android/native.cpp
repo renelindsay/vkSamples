@@ -61,7 +61,7 @@ int printf(const char* format, ...) {  // printf for Android
 }
 //--------------------------------------------------------------------------------------------------
 
-android_app* Android_App = 0;  // Android native-activity state
+android_app* Android_App = nullptr;  // Android native-activity state
 /*
 //--------------------TEMP------------------------
 //--Window event handler--
@@ -115,10 +115,6 @@ void android_main(struct android_app* state) {
     Android_App = state;                     // Pass android app state to window_android.cpp
 
     android_fopen_set_asset_manager(state->activity->assetManager);  // Re-direct fopen to read assets from our APK.
-
-    // int success=InitVulkan();
-    // printf("InitVulkan : %s\n",success ? "SUCCESS" : "FAILED");
-
     main(0, NULL);
 
     printf("Exiting.\n");
@@ -129,8 +125,8 @@ void android_main(struct android_app* state) {
 
 //========================UGLY JNI code for showing the Keyboard========================
 
-#define CALL_OBJ_METHOD( OBJ,METHOD,SIGNATURE, ...) jniEnv->CallObjectMethod (OBJ, jniEnv->GetMethodID(jniEnv->GetObjectClass(OBJ),METHOD,SIGNATURE), __VA_ARGS__)
-#define CALL_BOOL_METHOD(OBJ,METHOD,SIGNATURE, ...) jniEnv->CallBooleanMethod(OBJ, jniEnv->GetMethodID(jniEnv->GetObjectClass(OBJ),METHOD,SIGNATURE), __VA_ARGS__)
+#define CALL_OBJ_METHOD( OBJ,METHOD,SIGNATURE, ...) jniEnv->CallObjectMethod (OBJ, jniEnv->GetMethodID(jniEnv->GetObjectClass(OBJ),METHOD,SIGNATURE), ##__VA_ARGS__)
+#define CALL_BOOL_METHOD(OBJ,METHOD,SIGNATURE, ...) jniEnv->CallBooleanMethod(OBJ, jniEnv->GetMethodID(jniEnv->GetObjectClass(OBJ),METHOD,SIGNATURE), ##__VA_ARGS__)
 
 void ShowKeyboard(bool visible,int flags) {
     // Attach current thread to the JVM.
@@ -174,7 +170,6 @@ int GetUnicodeChar(int eventType, int keyCode, int metaState) {
     if (result == JNI_ERR) return 0;
 
     jclass class_key_event = jniEnv->FindClass("android/view/KeyEvent");
-
     jmethodID method_get_unicode_char = jniEnv->GetMethodID(class_key_event, "getUnicodeChar", "(I)I");
     jmethodID eventConstructor = jniEnv->GetMethodID(class_key_event, "<init>", "(II)V");
     jobject eventObj = jniEnv->NewObject(class_key_event, eventConstructor, eventType, keyCode);
@@ -184,5 +179,28 @@ int GetUnicodeChar(int eventType, int keyCode, int metaState) {
 
     // LOGI("Keycode: %d  MetaState: %d Unicode: %d", keyCode, metaState, unicodeKey);
     return unicodeKey;
+}
+
+std::string UnicodeToUTF8(int unicode) {
+    std::string utf8;
+    if (unicode < 0x80) { // 1-byte ASCII (0xxxxxxx)
+        utf8 += static_cast<char>(unicode);
+    }
+    else if (unicode < 0x800) { // 2-byte sequence (110xxxxx 10xxxxxx)
+        utf8 += static_cast<char>(0xC0 | (unicode >> 6));
+        utf8 += static_cast<char>(0x80 | (unicode & 0x3F));
+    }
+    else if (unicode < 0x10000) { // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+        utf8 += static_cast<char>(0xE0 | (unicode >> 12));
+        utf8 += static_cast<char>(0x80 | ((unicode >> 6) & 0x3F));
+        utf8 += static_cast<char>(0x80 | (unicode & 0x3F));
+    }
+    else if (unicode < 0x110000) { // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+        utf8 += static_cast<char>(0xF0 | (unicode >> 18));
+        utf8 += static_cast<char>(0x80 | ((unicode >> 12) & 0x3F));
+        utf8 += static_cast<char>(0x80 | ((unicode >> 6) & 0x3F));
+        utf8 += static_cast<char>(0x80 | (unicode & 0x3F));
+    }
+    return utf8;
 }
 //======================================================================================

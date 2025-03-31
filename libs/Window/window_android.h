@@ -13,6 +13,10 @@
 #include "native.h"  // for Android_App
 #include <cmath>
 
+#include <iostream>
+#include <string>
+#include <cstring>
+
 #define repeat(COUNT) for (uint32_t i = 0; i < COUNT; ++i)
 #define MIN(A,B) (((A)<(B))?(A):(B));
 #define MAX(A,B) (((A)>(B))?(A):(B));
@@ -40,9 +44,47 @@ const unsigned char ANDROID_TO_HID[256] = {
 };
 // clang-format on
 //==========================Android=============================
+
+//------------------------ JNI Wrappers ------------------------
+
+#define CALL_OBJ_METHOD( OBJ,METHOD,SIGNATURE, ...) env->CallObjectMethod (OBJ, env->GetMethodID(env->GetObjectClass(OBJ),METHOD,SIGNATURE), ##__VA_ARGS__)
+//#define CALL_BOOL_METHOD(OBJ,METHOD,SIGNATURE, ...) env->CallBooleanMethod(OBJ, env->GetMethodID(env->GetObjectClass(OBJ),METHOD,SIGNATURE), __VA_ARGS__)
+#define GET_STATIC_OBJ_FIELD(CLASS,FIELD,SIGNATURE) env->GetStaticObjectField(CLASS, env->GetStaticFieldID(CLASS, FIELD, SIGNATURE))
+
+std::vector<int> AInputQueue_getDeviceIds() {
+    JavaVM* jvm = Android_App->activity->vm;
+    JNIEnv* env = Android_App->activity->env;
+    jobject obj = Android_App->activity->clazz;  // native activity
+    jvm->AttachCurrentThread(&env, nullptr);     // Attach current thread to the JVM.
+
+    // Get InputManager from Context and call getInputDeviceIds()
+    jclass contextClass = env->FindClass("android/content/Context");
+    jstring inputService = (jstring)GET_STATIC_OBJ_FIELD(contextClass, "INPUT_SERVICE", "Ljava/lang/String;");
+    jobject inputManager = CALL_OBJ_METHOD(obj, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;", inputService);
+    jintArray deviceIdsArray = (jintArray)CALL_OBJ_METHOD(inputManager, "getInputDeviceIds", "()[I");
+
+    // Convert Java int[] to std::vector<int>
+    jsize length = env->GetArrayLength(deviceIdsArray);
+    std::vector<int> gamepadIds(length);
+    jint *elements = env->GetIntArrayElements(deviceIdsArray, nullptr);
+    for (jsize i=0; i<length; ++i) gamepadIds[i] = elements[i];
+    env->ReleaseIntArrayElements(deviceIdsArray, elements, JNI_ABORT);
+
+    jvm->DetachCurrentThread();  // Finished with the JVM.
+    return gamepadIds;
+}
+//--------------------------------------------------------------
+
 class Window_android : public WindowBase {
     android_app* m_app = 0;
     CMTouch MTouch;
+
+    //---- Gamepad ----
+    struct GPadSlots {
+        int32_t deviceID=0;
+    }gpads[MAX_GAMEPADS];
+    //-----------------
+
   public:
     void SetTitle(const char* title){};  // TODO : Set window title?
     void SetWinPos (uint x, uint y){};
@@ -94,9 +136,216 @@ class Window_android : public WindowBase {
 
     virtual ~Window_android(){}
 
+    //-------------------- GAMEPAD ---------------------
+    int Gamepad_keymap(uint keycode) {
+        switch (keycode) {
+            case AKEYCODE_BUTTON_A:      return eBTN_A;      // 96
+            case AKEYCODE_BUTTON_B:      return eBTN_B;      // 97
+            case AKEYCODE_BUTTON_X:      return eBTN_X;      // 99
+            case AKEYCODE_BUTTON_Y:      return eBTN_Y;      // 100
+            case AKEYCODE_BUTTON_L1:     return eBTN_TL;     // 102
+            case AKEYCODE_BUTTON_R1:     return eBTN_TR;     // 103
+            case AKEYCODE_BUTTON_SELECT: return eBTN_SELECT; // 109
+            case AKEYCODE_BUTTON_START:  return eBTN_START;  // 108
+            case AKEYCODE_BUTTON_MODE:   return eBTN_MODE;   // 110
+            case AKEYCODE_BUTTON_THUMBL: return eBTN_THUMBL; // 106
+            case AKEYCODE_BUTTON_THUMBR: return eBTN_THUMBR; // 107
+            default: return 0;
+        }
+    }
+
+    int8_t FindGamepad(AInputEvent* a_event) {  // returns gamepad slot id or -1 if failed
+        uint32_t deviceID = AInputEvent_getDeviceId(a_event);
+        repeat(MAX_GAMEPADS) if (gpads[i].deviceID == deviceID) return i;  // find gamepad by deviceId
+        return -1;
+    }
+
+    EventType ConnectGamepad(AInputEvent* a_event) {  // tries to connect to gamepad
+        uint32_t deviceID = AInputEvent_getDeviceId(a_event);
+        repeat(MAX_GAMEPADS) if (gpads[i].deviceID == 0) {
+            gpads[i].deviceID = deviceID;
+            printf("connect %d %d\n", i, deviceID);
+            return GPadConnect(i, true);
+        }
+        return {EventType::NONE};
+    }
+
+    void MonitorGamepads() {
+        // run only once per second
+        static clock_t last_time = clock();
+        clock_t curr_time = clock();
+        if (curr_time - last_time < CLOCKS_PER_SEC) return;
+        last_time = curr_time;
+
+        auto list = AInputQueue_getDeviceIds();
+        //for(int item : list) printf("%d ", item); printf("\n");
+        for(int i=0; i<MAX_GAMEPADS; ++i) {
+            int32_t id = gpads[i].deviceID;
+            if(id) if (std::find(list.begin(), list.end(), id) == list.end()) {
+                gpads[i].deviceID = 0;
+                eventFIFO.push(GPadConnect(i,false));
+            }
+        }
+    }
+
+    EventType GetGPadButtonEvent(AInputEvent* a_event) {
+        //ASSERT(AInputEvent_getType(a_event)==AINPUT_EVENT_TYPE_KEY, "Not a key press event.");
+        int8_t id = FindGamepad(a_event);            // Get gamepad ID for this event
+        if(id==-1) return ConnectGamepad(a_event);   // If not found, connect
+
+        int32_t keycode  = AKeyEvent_getKeyCode(a_event);
+        if (keycode >= AKEYCODE_BUTTON_A && keycode <= AKEYCODE_BUTTON_MODE) {
+            //printf("Gamepad %d: ", id);
+            if (AKeyEvent_getRepeatCount(a_event) == 0) {  // ignore keyboard repeat events
+                uint8_t btn = Gamepad_keymap(keycode);
+                bool down = (AKeyEvent_getAction(a_event) == AKEY_EVENT_ACTION_DOWN);
+                return GPadButton(id, btn, down);
+                //handled = 1;
+            }
+        }
+        return {};
+    }
+
+    EventType GetGPadAxisEvent(AInputEvent* a_event) {
+        //ASSERT(AInputEvent_getType(a_event)==AINPUT_EVENT_TYPE_MOTION, "Not a motion event.");
+        int8_t id = FindGamepad(a_event);            // Get gamepad ID for this event
+        if(id==-1) return ConnectGamepad(a_event);   // If not found, connect
+        Gamepad& pad = gamepad[id];
+
+        auto axisCheck = [&](eGamepadAxis axis, float val) {
+            if(pad.axes[axis] == val) return;
+            eventFIFO.push(GPadAxis(id, axis, val));
+        };
+
+        auto Hat = [&](int val, int btnNeg, int btnPos) { // convert hat axis values to button events
+            if((val!=-1) && ( pad.buttons[btnNeg])) eventFIFO.push(GPadButton(id, btnNeg, 0));
+            if((val!= 1) && ( pad.buttons[btnPos])) eventFIFO.push(GPadButton(id, btnPos, 0));
+            if((val==-1) && (!pad.buttons[btnNeg])) eventFIFO.push(GPadButton(id, btnNeg, 1));
+            if((val== 1) && (!pad.buttons[btnPos])) eventFIFO.push(GPadButton(id, btnPos, 1));
+        };
+
+        float lx = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_X, 0);
+        float ly =-AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_Y, 0);
+        float rx = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_Z, 0);
+        float ry =-AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_RZ, 0);
+              rx+= AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_RX, 0);
+              ry+=-AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_RY, 0);
+        float tl = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_GAS, 0);
+        float tr = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_BRAKE, 0);
+        float hatx = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_HAT_X, 0);
+        float haty = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_HAT_Y, 0);
+
+        axisCheck(eAXIS_LX, lx);
+        axisCheck(eAXIS_LY, ly);
+        axisCheck(eAXIS_RX, rx);
+        axisCheck(eAXIS_RY, ry);
+        axisCheck(eAXIS_TL, tl);
+        axisCheck(eAXIS_TR, tr);
+        Hat(hatx, eDPAD_LEFT, eDPAD_RIGHT);
+        Hat(haty, eDPAD_UP,   eDPAD_DOWN);
+
+        return {};
+    }
+    //--------------------------------------------------
+    //-------------------- KEYBOARD --------------------
+    EventType GetKeyboardEvent(AInputEvent* a_event) {  // KEYBOARD
+        int32_t a_action = AKeyEvent_getAction(a_event);
+        int32_t keycode  = AKeyEvent_getKeyCode(a_event);
+        uint8_t hidcode  = ANDROID_TO_HID[keycode];
+        // printf("key action:%d keycode=%d",a_action,keycode);
+        switch (a_action) {
+            case AKEY_EVENT_ACTION_DOWN: {
+                static char buf[5] = {};
+                int metaState = AKeyEvent_getMetaState(a_event);
+                int unicode = GetUnicodeChar(AKEY_EVENT_ACTION_DOWN, keycode, metaState);
+                if(unicode) {
+                    std::string utf8text = UnicodeToUTF8(unicode);
+                    memcpy(buf, utf8text.c_str(), 4);  // copy to static buf so it doesn't go out of scope
+                    eventFIFO.push(TextEvent(buf));    // text typed event  (store in FIFO for next run)
+                }
+                return KeyEvent(eDOWN, hidcode);       // key pressed event (returned on this run)
+            }
+            case AKEY_EVENT_ACTION_UP: {
+                return KeyEvent(eUP, hidcode); // key released event
+            }
+            case AKEY_EVENT_ACTION_MULTIPLE: {
+                // TODO: Implement IME and auto-correct string input
+                return TextEvent("IME/AutoCorrect not supported");
+            }
+        }
+        return {};
+    }
+    //--------------------------------------------------
+    //------------------ TOUCHSCREEN -------------------
+    EventType GetTouchscreenEvent(AInputEvent* a_event) {
+        EventType event = {};
+        int32_t a_action = AMotionEvent_getAction(a_event);
+        int action       = (a_action & 255); // get action-code from bottom 8 bits
+        MTouch.count     = (int)AMotionEvent_getPointerCount(a_event);
+        if (action == AMOTION_EVENT_ACTION_MOVE) {  //touch drag events
+            for(uint i = 0; i<MTouch.count; ++i) {
+                uint8_t finger_id = (uint8_t)AMotionEvent_getPointerId(a_event, i);
+                float x           = AMotionEvent_getX(a_event, i);
+                float y           = AMotionEvent_getY(a_event, i);
+                if(i==0) event    = MTouch.Event(eMOVE, x, y, finger_id);   // return first finger directly
+                else eventFIFO.push(MTouch.Event(eMOVE, x, y, finger_id));  // queue additional finger events
+            }
+        } else {  // touch up/down events
+            size_t inx        = (size_t)(a_action >> 8); // get index from top 24 bits
+            uint8_t finger_id = (uint8_t)AMotionEvent_getPointerId(a_event, inx);
+            float x           = AMotionEvent_getX(a_event, inx);
+            float y           = AMotionEvent_getY(a_event, inx);
+            switch (action) {
+                case AMOTION_EVENT_ACTION_POINTER_DOWN:
+                case AMOTION_EVENT_ACTION_DOWN      :  event = MTouch.Event(eDOWN, x, y, finger_id);  break;
+                case AMOTION_EVENT_ACTION_POINTER_UP:
+                case AMOTION_EVENT_ACTION_UP        :  event = MTouch.Event(eUP  , x, y, finger_id);  break;
+                case AMOTION_EVENT_ACTION_CANCEL    :  MTouch.Clear();                                break;
+                default:break;
+            }
+        }
+        //-------------------------Emulate mouse from touch events--------------------------
+        // if(event.tag==EventType::TOUCH && event.touch.id==0){  //if one-finger touch
+        //     eventFIFO.push(MouseEvent(event.touch.action, event.touch.x, event.touch.y, 1));
+        // }
+        //----------------------------------------------------------------------------------
+        return event;
+    }
+    //--------------------------------------------------
+    //--------------------- MOUSE ----------------------
+    EventType GetMouseEvent(AInputEvent* a_event) {
+        //TODO: Implement mouse support (this function is untested)
+        EventType event = {};
+        int32_t a_action = AMotionEvent_getAction(a_event);
+        int action = (a_action & 255); // get action-code from bottom 8 bits
+
+        int16_t x = (int16_t)AMotionEvent_getX(a_event, 0);
+        int16_t y = (int16_t)AMotionEvent_getY(a_event, 0);
+
+        // Get button state (bitmask: 0x1 = left, 0x2 = right, 0x4 = middle)
+        int32_t buttons = AMotionEvent_getButtonState(a_event);
+        uint8_t btn = (buttons & AMOTION_EVENT_BUTTON_PRIMARY) ? 1 :
+                      (buttons & AMOTION_EVENT_BUTTON_TERTIARY) ? 2 :
+                      (buttons & AMOTION_EVENT_BUTTON_SECONDARY)  ? 3 : 0;
+
+        switch (action) {
+            case AMOTION_EVENT_ACTION_DOWN: event = MouseEvent(eDOWN, x, y, btn);  break;
+            case AMOTION_EVENT_ACTION_MOVE: event = MouseEvent(eMOVE, x, y, btn);  break;
+            case AMOTION_EVENT_ACTION_UP:   event = MouseEvent(eUP,   x, y, btn);  break;
+            case AMOTION_EVENT_ACTION_SCROLL: {
+                float vscroll = AMotionEvent_getAxisValue(a_event, AMOTION_EVENT_AXIS_VSCROLL, 0);
+                uint8_t wheel = (vscroll > 0) ? 4 : 5;
+                event = MouseEvent(eDOWN, x, y, wheel);
+                break;
+            }
+            default: break;
+        }
+        return event;
+    }
+    //--------------------------------------------------
+    //--------------- Main event handler ---------------
     EventType GetEvent(bool wait_for_event = false) {
-        EventType event    = {};
-        static char buf[4] = {};                            // store char for text event
+        EventType event = {};
         if (!eventFIFO.isEmpty()) return *eventFIFO.pop();  // pop message from message queue buffer
 
         int events = 0;
@@ -124,87 +373,41 @@ class Window_android : public WindowBase {
             while (AInputQueue_getEvent(m_app->inputQueue, &a_event) >= 0) {
                 // LOGV("New input event: type=%d\n", AInputEvent_getType(event));
                 if (AInputQueue_preDispatchEvent(m_app->inputQueue, a_event)) { continue; }
-                int32_t handled                        = 0;
-                if (m_app->onInputEvent != NULL) handled = m_app->onInputEvent(m_app, a_event);
+                int32_t handled = 0;
+                //if (m_app->onInputEvent) handled = m_app->onInputEvent(m_app, a_event);
 
-                int32_t type = AInputEvent_getType(a_event);
-                if (type == AINPUT_EVENT_TYPE_KEY) {  // KEYBOARD
-                    int32_t a_action = AKeyEvent_getAction(a_event);
-                    int32_t keycode  = AKeyEvent_getKeyCode(a_event);
-                    uint8_t hidcode  = ANDROID_TO_HID[keycode];
-                    // printf("key action:%d keycode=%d",a_action,keycode);
-                    switch (a_action) {
-                    case AKEY_EVENT_ACTION_DOWN: {
-                        int metaState = AKeyEvent_getMetaState(a_event);
-                        int unicode   = GetUnicodeChar(AKEY_EVENT_ACTION_DOWN, keycode, metaState);
-                        (int&)buf     = unicode;
-                        event = KeyEvent(eDOWN, hidcode);            // key pressed event (returned on this run)
-                        if (buf[0]) eventFIFO.push(TextEvent(buf));  // text typed event  (store in FIFO for next run)
-                        break;
-                    }
-                    case AKEY_EVENT_ACTION_UP: {
-                        event = KeyEvent(eUP, hidcode);              // key released event
-                        break;
-                    }
-                    default: break;
-                    }
+                enum eSource{ eUNKNOWN, eKEYBOARD, eTOUCHSCREEN, eGPADBUTTON, eGPADAXIS, eMOUSE} eSource = eUNKNOWN;
 
-                } else if (type == AINPUT_EVENT_TYPE_MOTION) { // TOUCH-SCREEN
-                    int32_t a_action = AMotionEvent_getAction(a_event);
-                    int action       = (a_action & 255); // get action-code from bottom 8 bits
-                    MTouch.count     = (int)AMotionEvent_getPointerCount(a_event);
-                    if (action == AMOTION_EVENT_ACTION_MOVE) {
+                int32_t source = AInputEvent_getSource(a_event);
+                if      (source == AINPUT_SOURCE_KEYBOARD)    eSource = eKEYBOARD;
+                else if (source == AINPUT_SOURCE_TOUCHSCREEN) eSource = eTOUCHSCREEN;
+                else if (source &  AINPUT_SOURCE_GAMEPAD)     eSource = eGPADBUTTON;
+                else if (source == AINPUT_SOURCE_JOYSTICK)    eSource = eGPADAXIS;
+                else if (source == AINPUT_SOURCE_MOUSE)       eSource = eMOUSE;
+                //printf("source=%x\n", source);
+                //if (eSource == eTOUCHSCREEN) eSource = eMOUSE;  // TEMP
 
-                        if (MTouch.count>1)
-                        for(uint i = 1; i<MTouch.count; ++i) {
-                            uint8_t finger_id = (uint8_t)AMotionEvent_getPointerId(a_event, i);
-                            float x           = AMotionEvent_getX(a_event, i);
-                            float y           = AMotionEvent_getY(a_event, i);
-                            event             = MTouch.Event(eMOVE, x, y, finger_id);
-                            eventFIFO.push(event);
-                        }
-                        if (MTouch.count>0) {
-                            uint8_t finger_id = (uint8_t)AMotionEvent_getPointerId(a_event, 0);
-                            float x           = AMotionEvent_getX(a_event, 0);
-                            float y           = AMotionEvent_getY(a_event, 0);
-                            event             = MTouch.Event(eMOVE, x, y, finger_id);
-                        }
-
-
-                    } else {
-                        size_t inx        = (size_t)(a_action >> 8); // get index from top 24 bits
-                        uint8_t finger_id = (uint8_t)AMotionEvent_getPointerId(a_event, inx);
-                        float x           = AMotionEvent_getX(a_event, inx);
-                        float y           = AMotionEvent_getY(a_event, inx);
-                        switch (action) {
-                            case AMOTION_EVENT_ACTION_POINTER_DOWN:
-                            case AMOTION_EVENT_ACTION_DOWN      :  event = MTouch.Event(eDOWN, x, y, finger_id);  break;
-                            case AMOTION_EVENT_ACTION_POINTER_UP:
-                            case AMOTION_EVENT_ACTION_UP        :  event = MTouch.Event(eUP  , x, y, finger_id);  break;
-                            case AMOTION_EVENT_ACTION_CANCEL    :  MTouch.Clear();                                break;
-                            default:break;
-                        }
-                    }
-                    //-------------------------Emulate mouse from touch events--------------------------
-                    // if(event.tag==EventType::TOUCH && event.touch.id==0){  //if one-finger touch
-                    //     eventFIFO.push(MouseEvent(event.touch.action, event.touch.x, event.touch.y, 1));
-                    // }
-                    //----------------------------------------------------------------------------------
-                    handled = 0;
+                switch (eSource) {
+                    case eKEYBOARD    : {event = GetKeyboardEvent   (a_event); handled=1; break;}
+                    case eTOUCHSCREEN : {event = GetTouchscreenEvent(a_event); handled=1; break;}
+                    case eGPADBUTTON  : {event = GetGPadButtonEvent (a_event); handled=1; break;}
+                    case eGPADAXIS    : {event = GetGPadAxisEvent   (a_event); handled=1; break;}
+                    case eMOUSE       : {event = GetMouseEvent      (a_event); handled=1; break;}
+                    default : break;
                 }
+
+                if(event.tag==EventType::NONE)
+                  if (!eventFIFO.isEmpty()) event = *eventFIFO.pop();
                 AInputQueue_finishEvent(m_app->inputQueue, a_event, handled);
                 return event;
             }
+        }  // else if (id == LOOPER_ID_USER) { printf("LOOPER_ID_USER\n");}
 
-        }  // else if (id == LOOPER_ID_USER) { }
-
-        // Check if we are exiting.
-        if (m_app->destroyRequested) {
-            LOGI("destroyRequested");
-            return CloseEvent();
-        }
-        return {EventType::NONE};
+        MonitorGamepads();
+        if (m_app->destroyRequested) return CloseEvent();  // Check if we are exiting.
+        return {};
     };
+    //--------------------------------------------------
 
     //--Show / Hide keyboard--
     void ShowKeyboard(bool enabled) {
