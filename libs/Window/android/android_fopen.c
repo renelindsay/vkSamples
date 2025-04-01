@@ -33,7 +33,7 @@ void android_fopen_set_asset_manager(AAssetManager* manager) {
 }
 
 FILE* android_fopen(const char* fname, const char* mode) {
-  if(mode[0] == 'w') return NULL;
+  if(mode[0] != 'r') return NULL;
 
   AAsset* asset = AAssetManager_open(android_asset_manager, fname, 0);
   if(!asset) return NULL;

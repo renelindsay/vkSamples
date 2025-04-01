@@ -46,12 +46,11 @@ const unsigned char ANDROID_TO_HID[256] = {
 //==========================Android=============================
 
 //------------------------ JNI Wrappers ------------------------
-
 #define CALL_OBJ_METHOD( OBJ,METHOD,SIGNATURE, ...) env->CallObjectMethod (OBJ, env->GetMethodID(env->GetObjectClass(OBJ),METHOD,SIGNATURE), ##__VA_ARGS__)
 //#define CALL_BOOL_METHOD(OBJ,METHOD,SIGNATURE, ...) env->CallBooleanMethod(OBJ, env->GetMethodID(env->GetObjectClass(OBJ),METHOD,SIGNATURE), __VA_ARGS__)
 #define GET_STATIC_OBJ_FIELD(CLASS,FIELD,SIGNATURE) env->GetStaticObjectField(CLASS, env->GetStaticFieldID(CLASS, FIELD, SIGNATURE))
 
-std::vector<int> AInputQueue_getDeviceIds() {
+static std::vector<int> AInputQueue_getDeviceIds() {
     JavaVM* jvm = Android_App->activity->vm;
     JNIEnv* env = Android_App->activity->env;
     jobject obj = Android_App->activity->clazz;  // native activity
@@ -73,6 +72,46 @@ std::vector<int> AInputQueue_getDeviceIds() {
     jvm->DetachCurrentThread();  // Finished with the JVM.
     return gamepadIds;
 }
+
+struct GamepadInfo {
+    std::string name;
+    bool hasHatAxes;
+};
+
+static std::string jstringToStdString(JNIEnv* env, jstring jStr) {
+    if (!jStr) return "";
+    const char* chars = env->GetStringUTFChars(jStr, nullptr);
+    std::string result(chars);
+    env->ReleaseStringUTFChars(jStr, chars);
+    return result;
+}
+
+static GamepadInfo GetGamepadInfo(int deviceId) {
+    JavaVM* jvm = Android_App->activity->vm;
+    JNIEnv* env = Android_App->activity->env;
+    jobject obj = Android_App->activity->clazz;  // native activity
+    jvm->AttachCurrentThread(&env, nullptr);
+    GamepadInfo info;
+    //get gamepad hame
+    jclass inputDeviceClass = env->FindClass("android/view/InputDevice");
+    jmethodID getDeviceMethod = env->GetStaticMethodID(inputDeviceClass, "getDevice", "(I)Landroid/view/InputDevice;");
+    jobject inputDevice = env->CallStaticObjectMethod(inputDeviceClass, getDeviceMethod, deviceId);
+    jmethodID getNameMethod = env->GetMethodID(inputDeviceClass, "getName", "()Ljava/lang/String;");
+    jstring jName = (jstring)env->CallObjectMethod(inputDevice, getNameMethod);
+    info.name = jstringToStdString(env, jName);
+    env->DeleteLocalRef(jName);
+    //gamepad has hat?
+    jmethodID getMotionRangeMethod = env->GetMethodID(inputDeviceClass, "getMotionRange", "(I)Landroid/view/InputDevice$MotionRange;");
+    jobject hatXRange = env->CallObjectMethod(inputDevice, getMotionRangeMethod, AMOTION_EVENT_AXIS_HAT_X);
+    jobject hatYRange = env->CallObjectMethod(inputDevice, getMotionRangeMethod, AMOTION_EVENT_AXIS_HAT_Y);
+    info.hasHatAxes = (hatXRange && hatYRange);
+    // Cleanup
+    env->DeleteLocalRef(inputDevice);
+    env->DeleteLocalRef(inputDeviceClass);
+    jvm->DetachCurrentThread();
+    return info;
+}
+
 //--------------------------------------------------------------
 
 class Window_android : public WindowBase {
@@ -82,6 +121,9 @@ class Window_android : public WindowBase {
     //---- Gamepad ----
     struct GPadSlots {
         int32_t deviceID=0;
+        char name[256] = {};
+        bool SwapAB =false;       // Nintendo gamepads swap A and B buttons
+        bool useDPad=false;       // Sony Dualshock hat emits dpad button events instead of HAT axis
     }gpads[MAX_GAMEPADS];
     //-----------------
 
@@ -137,7 +179,7 @@ class Window_android : public WindowBase {
     virtual ~Window_android(){}
 
     //-------------------- GAMEPAD ---------------------
-    int Gamepad_keymap(uint keycode) {
+    int Gamepad_keymap(uint keycode, bool useDPAD=false) {
         switch (keycode) {
             case AKEYCODE_BUTTON_A:      return eBTN_A;      // 96
             case AKEYCODE_BUTTON_B:      return eBTN_B;      // 97
@@ -150,8 +192,17 @@ class Window_android : public WindowBase {
             case AKEYCODE_BUTTON_MODE:   return eBTN_MODE;   // 110
             case AKEYCODE_BUTTON_THUMBL: return eBTN_THUMBL; // 106
             case AKEYCODE_BUTTON_THUMBR: return eBTN_THUMBR; // 107
-            default: return 0;
+            //default: return 0;
         }
+        if(useDPAD)
+        switch (keycode) {
+            case AKEYCODE_DPAD_UP:    return eDPAD_UP;      // 19
+            case AKEYCODE_DPAD_DOWN:  return eDPAD_DOWN;    // 20
+            case AKEYCODE_DPAD_LEFT:  return eDPAD_LEFT;    // 21
+            case AKEYCODE_DPAD_RIGHT: return eDPAD_RIGHT;   // 22
+            //default: return 0;
+        }
+        return 0;
     }
 
     int8_t FindGamepad(AInputEvent* a_event) {  // returns gamepad slot id or -1 if failed
@@ -163,8 +214,18 @@ class Window_android : public WindowBase {
     EventType ConnectGamepad(AInputEvent* a_event) {  // tries to connect to gamepad
         uint32_t deviceID = AInputEvent_getDeviceId(a_event);
         repeat(MAX_GAMEPADS) if (gpads[i].deviceID == 0) {
-            gpads[i].deviceID = deviceID;
-            printf("connect %d %d\n", i, deviceID);
+            auto& pad = gpads[i];
+            pad.deviceID = deviceID;
+            GamepadInfo info = GetGamepadInfo(deviceID);
+            std::string name = info.name;
+            strncpy(pad.name, name.c_str(), sizeof(pad.name)-1);
+            printf("Gamepad %d found: %s\n", i, pad.name);
+            // NINTENDO
+            pad.SwapAB=false;  // Nintendo swaps the A and B buttons
+            if(name.find("Nintendo") || name.find("Switch"))         {pad.SwapAB = true;}
+            if(name.find("Joy-Con")  || name.find("Pro Controller")) {pad.SwapAB = true;}
+            // SONY
+            pad.useDPad = !info.hasHatAxes;
             return GPadConnect(i, true);
         }
         return {EventType::NONE};
@@ -197,10 +258,11 @@ class Window_android : public WindowBase {
         if (keycode >= AKEYCODE_BUTTON_A && keycode <= AKEYCODE_BUTTON_MODE) {
             //printf("Gamepad %d: ", id);
             if (AKeyEvent_getRepeatCount(a_event) == 0) {  // ignore keyboard repeat events
-                uint8_t btn = Gamepad_keymap(keycode);
+                auto& pad = gpads[id];
+                uint8_t btn = Gamepad_keymap(keycode, pad.useDPad);
+                if(pad.SwapAB && btn<5){static int ABtoBA[]={0,2,1,4,3}; btn=ABtoBA[btn];}  // Nintendo: Swap A/B
                 bool down = (AKeyEvent_getAction(a_event) == AKEY_EVENT_ACTION_DOWN);
                 return GPadButton(id, btn, down);
-                //handled = 1;
             }
         }
         return {};
@@ -244,6 +306,7 @@ class Window_android : public WindowBase {
         Hat(hatx, eDPAD_LEFT, eDPAD_RIGHT);
         Hat(haty, eDPAD_UP,   eDPAD_DOWN);
 
+        if(!eventFIFO.isEmpty()) return *eventFIFO.pop();
         return {};
     }
     //--------------------------------------------------
@@ -253,6 +316,8 @@ class Window_android : public WindowBase {
         int32_t keycode  = AKeyEvent_getKeyCode(a_event);
         uint8_t hidcode  = ANDROID_TO_HID[keycode];
         // printf("key action:%d keycode=%d",a_action,keycode);
+        if(!hidcode) return {};  // unknown key
+
         switch (a_action) {
             case AKEY_EVENT_ACTION_DOWN: {
                 static char buf[5] = {};
@@ -269,8 +334,9 @@ class Window_android : public WindowBase {
                 return KeyEvent(eUP, hidcode); // key released event
             }
             case AKEY_EVENT_ACTION_MULTIPLE: {
-                // TODO: Implement IME and auto-correct string input
-                return TextEvent("IME/AutoCorrect not supported");
+                // TODO: Implement IME and auto-correct string input,
+                //  (When google fixes the getCharacters bug.)
+                //return TextEvent("IME/AutoCorrect not supported");
             }
         }
         return {};
@@ -371,32 +437,30 @@ class Window_android : public WindowBase {
         } else if (id == LOOPER_ID_INPUT) {
             AInputEvent* a_event = NULL;
             while (AInputQueue_getEvent(m_app->inputQueue, &a_event) >= 0) {
-                // LOGV("New input event: type=%d\n", AInputEvent_getType(event));
+                //LOGV("Event: source=0x%4x type=%d\n", AInputEvent_getSource(a_event),AInputEvent_getType(a_event));
                 if (AInputQueue_preDispatchEvent(m_app->inputQueue, a_event)) { continue; }
                 int32_t handled = 0;
-                //if (m_app->onInputEvent) handled = m_app->onInputEvent(m_app, a_event);
-
-                enum eSource{ eUNKNOWN, eKEYBOARD, eTOUCHSCREEN, eGPADBUTTON, eGPADAXIS, eMOUSE} eSource = eUNKNOWN;
+                if (m_app->onInputEvent) handled = m_app->onInputEvent(m_app, a_event);
 
                 int32_t source = AInputEvent_getSource(a_event);
-                if      (source == AINPUT_SOURCE_KEYBOARD)    eSource = eKEYBOARD;
-                else if (source == AINPUT_SOURCE_TOUCHSCREEN) eSource = eTOUCHSCREEN;
-                else if (source &  AINPUT_SOURCE_GAMEPAD)     eSource = eGPADBUTTON;
-                else if (source == AINPUT_SOURCE_JOYSTICK)    eSource = eGPADAXIS;
-                else if (source == AINPUT_SOURCE_MOUSE)       eSource = eMOUSE;
-                //printf("source=%x\n", source);
-                //if (eSource == eTOUCHSCREEN) eSource = eMOUSE;  // TEMP
+                //bool isClassButton   = (source & AINPUT_SOURCE_CLASS_BUTTON);
+                //bool isClassPointer  = (source & AINPUT_SOURCE_CLASS_POINTER);
+                //bool isClassJoystick = (source & AINPUT_SOURCE_CLASS_JOYSTICK);
 
-                switch (eSource) {
-                    case eKEYBOARD    : {event = GetKeyboardEvent   (a_event); handled=1; break;}
-                    case eTOUCHSCREEN : {event = GetTouchscreenEvent(a_event); handled=1; break;}
-                    case eGPADBUTTON  : {event = GetGPadButtonEvent (a_event); handled=1; break;}
-                    case eGPADAXIS    : {event = GetGPadAxisEvent   (a_event); handled=1; break;}
-                    case eMOUSE       : {event = GetMouseEvent      (a_event); handled=1; break;}
-                    default : break;
-                }
+                bool isKeyboard    = (source & AINPUT_SOURCE_KEYBOARD);     // class button
+                bool isTouchscreen = (source & AINPUT_SOURCE_TOUCHSCREEN);  // class pointer
+                bool isGamepad     = (source & AINPUT_SOURCE_GAMEPAD);      // class button
+                bool isJoystick    = (source & AINPUT_SOURCE_JOYSTICK);     // class joystick
+                bool isMouse       = (source & AINPUT_SOURCE_MOUSE);        // class pointer
 
-                if(event.tag==EventType::NONE)
+                if(!event && isKeyboard)   {event = GetKeyboardEvent   (a_event);}
+                if(!event && isTouchscreen){event = GetTouchscreenEvent(a_event);}
+                if(!event && isGamepad)    {event = GetGPadButtonEvent (a_event);}
+                if(!event && isJoystick)   {event = GetGPadAxisEvent   (a_event);}
+                if(!event && isMouse)      {event = GetMouseEvent      (a_event);}
+                handled = event;  // if an event was created, mark it as handled
+
+                if(!event)
                   if (!eventFIFO.isEmpty()) event = *eventFIFO.pop();
                 AInputQueue_finishEvent(m_app->inputQueue, a_event, handled);
                 return event;
@@ -437,12 +501,13 @@ class Window_android : public WindowBase {
         //printf("bounds: left=%d top=%d right=%d bottom=%d\n", bounds.left, bounds.top, bounds.right, bounds.bottom);
         w = bounds.right - bounds.left;
         h = bounds.bottom - bounds.top;
-        uint min_w = MIN(w, width);
-        uint min_h = MIN(h, height);
-        int step = std::ceil((float)w/64)*64;  // round up to nearest 64 pixels
+        uint min_w = MIN(w, width);  // draw min of window-w and image-w
+        uint min_h = MIN(h, height); // draw min of window-h and image-h
+        int stride = outbuf.stride;  // Actual buffer stride for memory alignment
+
         for(int y = 0; y<min_h; ++y) {
             uint32_t* src = buf + y * width;
-            uint32_t* dst = ((uint32_t*)outbuf.bits) + y*step;
+            uint32_t* dst = ((uint32_t*)outbuf.bits) + y*stride;
             memcpy(dst, src, min_w*4);
         }
         ANativeWindow_unlockAndPost(wnd);

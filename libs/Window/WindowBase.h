@@ -40,7 +40,7 @@ struct EventType {
         struct {uint8_t pad; uint8_t axis; float val;             } gp_axis;     // Gamepad axis value
         struct {                                                  } close;       // Window is closing
     };
-    void Clear() { tag = NONE; }
+    operator bool() const {return (tag!=NONE);}
 };
 //==============================================================
 //======================== FIFO Buffer =========================  // Used for event message queue

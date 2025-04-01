@@ -9,7 +9,7 @@ const char *type[] {"up  ", "down", "move"};  // Action types for mouse, keyboar
 //-- EVENT HANDLERS --
 //class MainWindow : public vkWindow {  // With Vulkan (requires vkUtils)
 class MainWindow : public CWindow {  // Without Vulkan
-    void OnMouseEvent (eAction action, int16_t x, int16_t y, uint8_t btn) { printf("%s %d x %d Btn:%d\n", type[action], x, y, btn); }
+    void OnMouseEvent (eAction action, int16_t x, int16_t y, uint8_t btn) { printf("Mouse: %s %d x %d Btn:%d\n", type[action], x, y, btn); }
     void OnTouchEvent (eAction action, float x, float y, uint8_t id) { printf("Touch: %s %.2f x %.2f id:%d\n", type[action], x, y, id); }
     void OnKeyEvent   (eAction action, eKeycode keycode) { printf("Key: %s keycode:%d\n", type[action], keycode); }
     void OnTextEvent  (const char *str) { printf("Text: '%s'\n", str); }
@@ -60,7 +60,6 @@ int main(int argc, char *argv[]) {
     while(window.PollEvents()) {                              // Main event loop, runs until window is closed.
         bool key_pressed = window.GetKeyState(eKEY_LeftShift);
         if (key_pressed) printf("LEFT SHIFT PRESSED\r");
-
 
         for(int y=0;y<256;++y) for(int x=0;x<256;++x) {
             uint32_t* pix = &image[x + y*256];
