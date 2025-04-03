@@ -17,6 +17,7 @@
 #include <string>
 #include <cstring>
 
+#undef  repeat
 #define repeat(COUNT) for (uint32_t i = 0; i < COUNT; ++i)
 #define MIN(A,B) (((A)<(B))?(A):(B));
 #define MAX(A,B) (((A)>(B))?(A):(B));
@@ -222,8 +223,8 @@ class Window_android : public WindowBase {
             printf("Gamepad %d found: %s\n", i, pad.name);
             // NINTENDO
             pad.SwapAB=false;  // Nintendo swaps the A and B buttons
-            if(name.find("Nintendo") || name.find("Switch"))         {pad.SwapAB = true;}
-            if(name.find("Joy-Con")  || name.find("Pro Controller")) {pad.SwapAB = true;}
+            if((name.find("Nintendo")>-1) || (name.find("Switch")>-1))         {pad.SwapAB = true;}
+            if((name.find("Joy-Con")>-1)  || (name.find("Pro Controller")>-1)) {pad.SwapAB = true;}
             // SONY
             pad.useDPad = !info.hasHatAxes;
             return GPadConnect(i, true);
@@ -380,24 +381,29 @@ class Window_android : public WindowBase {
     //--------------------------------------------------
     //--------------------- MOUSE ----------------------
     EventType GetMouseEvent(AInputEvent* a_event) {
-        //TODO: Implement mouse support (this function is untested)
         EventType event = {};
         int32_t a_action = AMotionEvent_getAction(a_event);
         int action = (a_action & 255); // get action-code from bottom 8 bits
 
         int16_t x = (int16_t)AMotionEvent_getX(a_event, 0);
         int16_t y = (int16_t)AMotionEvent_getY(a_event, 0);
+        bool moved = (x!=mousepos.x || y!=mousepos.y);
+        if(!moved && action==AMOTION_EVENT_ACTION_HOVER_MOVE) return event;  // eliminate fake move events
 
         // Get button state (bitmask: 0x1 = left, 0x2 = right, 0x4 = middle)
         int32_t buttons = AMotionEvent_getButtonState(a_event);
-        uint8_t btn = (buttons & AMOTION_EVENT_BUTTON_PRIMARY) ? 1 :
-                      (buttons & AMOTION_EVENT_BUTTON_TERTIARY) ? 2 :
-                      (buttons & AMOTION_EVENT_BUTTON_SECONDARY)  ? 3 : 0;
+        uint8_t bestBtn = GetBtnState(1) ? 1 : GetBtnState(2) ? 2 : GetBtnState(3) ? 3 : 0;
+
+        uint8_t btn = 0;  // get button that changed
+        if(m_btnstate[3] != (buttons & AMOTION_EVENT_BUTTON_SECONDARY)) btn = 3;
+        if(m_btnstate[2] != (buttons & AMOTION_EVENT_BUTTON_TERTIARY)) btn = 2;
+        if(m_btnstate[1] != (buttons & AMOTION_EVENT_BUTTON_PRIMARY)) btn = 1;
 
         switch (action) {
-            case AMOTION_EVENT_ACTION_DOWN: event = MouseEvent(eDOWN, x, y, btn);  break;
-            case AMOTION_EVENT_ACTION_MOVE: event = MouseEvent(eMOVE, x, y, btn);  break;
-            case AMOTION_EVENT_ACTION_UP:   event = MouseEvent(eUP,   x, y, btn);  break;
+            case AMOTION_EVENT_ACTION_BUTTON_PRESS   : event = MouseEvent(eDOWN, x, y, btn);     break;
+            case AMOTION_EVENT_ACTION_MOVE           : event = MouseEvent(eMOVE, x, y, bestBtn); break;
+            case AMOTION_EVENT_ACTION_HOVER_MOVE     : event = MouseEvent(eMOVE, x, y, 0  );     break;
+            case AMOTION_EVENT_ACTION_BUTTON_RELEASE : event = MouseEvent(eUP,   x, y, btn);     break;
             case AMOTION_EVENT_ACTION_SCROLL: {
                 float vscroll = AMotionEvent_getAxisValue(a_event, AMOTION_EVENT_AXIS_VSCROLL, 0);
                 uint8_t wheel = (vscroll > 0) ? 4 : 5;
@@ -447,19 +453,23 @@ class Window_android : public WindowBase {
                 //bool isClassPointer  = (source & AINPUT_SOURCE_CLASS_POINTER);
                 //bool isClassJoystick = (source & AINPUT_SOURCE_CLASS_JOYSTICK);
 
-                bool isKeyboard    = (source & AINPUT_SOURCE_KEYBOARD);     // class button
-                bool isTouchscreen = (source & AINPUT_SOURCE_TOUCHSCREEN);  // class pointer
-                bool isGamepad     = (source & AINPUT_SOURCE_GAMEPAD);      // class button
-                bool isJoystick    = (source & AINPUT_SOURCE_JOYSTICK);     // class joystick
-                bool isMouse       = (source & AINPUT_SOURCE_MOUSE);        // class pointer
+                source&=AINPUT_SOURCE_ANY;
+                bool isKeyboard  = (source & AINPUT_SOURCE_KEYBOARD);     // class button
+                bool isGamepad   = (source & AINPUT_SOURCE_GAMEPAD);      // class button
+                bool isJoystick  = (source & AINPUT_SOURCE_JOYSTICK);     // class joystick
+                bool isTouch     = (source & AINPUT_SOURCE_TOUCHSCREEN);  // class pointer
+                bool isMouse     = (source & AINPUT_SOURCE_MOUSE);        // class pointer
+                bool isStylus    = (source & AINPUT_SOURCE_STYLUS);       // class pointer
+                if(isStylus) isMouse = true;  // treat stylus as mouse. TODO: Add Stylus support
+                //printf("source=0x%4x %s%s%s%s%s\n", source, isTouch?"T":".", isMouse?"M":".", isKeyboard?"K":".", isGamepad?"G":".", isJoystick?"J":".");
 
-                if(!event && isKeyboard)   {event = GetKeyboardEvent   (a_event);}
-                if(!event && isTouchscreen){event = GetTouchscreenEvent(a_event);}
-                if(!event && isGamepad)    {event = GetGPadButtonEvent (a_event);}
-                if(!event && isJoystick)   {event = GetGPadAxisEvent   (a_event);}
-                if(!event && isMouse)      {event = GetMouseEvent      (a_event);}
-                handled = event;  // if an event was created, mark it as handled
-
+                if(!event && isKeyboard) {event = GetKeyboardEvent   (a_event);}
+                if(!event && isGamepad)  {event = GetGPadButtonEvent (a_event);}
+                if(!event && isJoystick) {event = GetGPadAxisEvent   (a_event);}
+                if(!event && isTouch)    {event = GetTouchscreenEvent(a_event);}
+                if(!event && isMouse)    {event = GetMouseEvent      (a_event); handled=1;}
+                handled |= event;  // if an event was created, mark it as handled
+handled = 1;
                 if(!event)
                   if (!eventFIFO.isEmpty()) event = *eventFIFO.pop();
                 AInputQueue_finishEvent(m_app->inputQueue, a_event, handled);

@@ -100,12 +100,12 @@ struct Gamepad {
 //==============================================================
 //======================Window base class=======================
 class WindowBase {
+protected:
     struct {int16_t x; int16_t y;}mousepos = {};                               // mouse position
     bool m_btnstate[6]   = {};                                                 // mouse btn state
     bool m_keystate[256] = {};                                                 // keyboard state
-  protected:
     Gamepad gamepad[MAX_GAMEPADS];                                             // gamepad state
-  protected:
+
     EventFIFO eventFIFO;                                                       // Event message queue buffer
     EventType MouseEvent (eAction action, int16_t x, int16_t y, uint8_t btn);  // Mouse event
     EventType KeyEvent   (eAction action, uint8_t key);                        // Keyboard event

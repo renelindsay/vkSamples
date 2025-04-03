@@ -158,20 +158,20 @@ enum eKeycode {
 
 enum eGamepadBtn {
     eBTN_UNKNOWN,
-    eBTN_A,
-    eBTN_B,
-    eBTN_X,
-    eBTN_Y,
-    eBTN_TL,
-    eBTN_TR,
-    eBTN_THUMBL,
-    eBTN_THUMBR,
-    eDPAD_UP,
-    eDPAD_DOWN,
-    eDPAD_LEFT,
-    eDPAD_RIGHT,
+    eBTN_A,       // 1
+    eBTN_B,       // 2
+    eBTN_X,       // 3
+    eBTN_Y,       // 4
+    eBTN_TL,      // 5
+    eBTN_TR,      // 6
+    eBTN_THUMBL,  // 7
+    eBTN_THUMBR,  // 8
+    eDPAD_UP,     // 9
+    eDPAD_DOWN,   // 10
+    eDPAD_LEFT,   // 11
+    eDPAD_RIGHT,  // 12
     eBTN_SELECT,  // Warning: Maps to Android's Back button. (Closes keyboard/app.)
-    eBTN_START,
+    eBTN_START,   // 14
     eBTN_MODE     // Warning: Windows/Linux: Launch Steam. Android: Maps to Home btn. (Closes app.)
 };
 

@@ -407,9 +407,9 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
     uint8_t btn= e.detail;
     uint8_t bestBtn = GetBtnState(1) ? 1 : GetBtnState(2) ? 2 : GetBtnState(3) ? 3 : 0;  // If multiple buttons pressed, pick left one.
     switch(x_event->response_type & ~0x80) {
-        case XCB_MOTION_NOTIFY : return MouseEvent(eMOVE, mx, my, bestBtn);     // mouse move
-        case XCB_BUTTON_PRESS  : return MouseEvent(eDOWN, mx, my, btn);         // mouse btn press
-        case XCB_BUTTON_RELEASE: return MouseEvent(eUP  , mx, my, btn);         // mouse btn release
+        case XCB_MOTION_NOTIFY : return MouseEvent(eMOVE, mx, my, bestBtn); // mouse move
+        case XCB_BUTTON_PRESS  : return MouseEvent(eDOWN, mx, my, btn);     // mouse btn press
+        case XCB_BUTTON_RELEASE: return MouseEvent(eUP  , mx, my, btn);     // mouse btn release
         case XCB_KEY_PRESS:{
             //printf("btn %d", btn);
             uint8_t keycode = EVDEV_TO_HID[btn];                    // On Stratus XL gamepad, 2 buttons trigger keyboard events
@@ -419,8 +419,8 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
             }
             xkb_state_key_get_utf8(k_state,btn,buf,sizeof(buf));
             xkb_state_update_key(k_state,btn,XKB_KEY_DOWN);
-            if(buf[0]) eventFIFO.push(TextEvent(buf));                          // text typed event (store in FIFO for next run)
-            return KeyEvent(eDOWN, keycode);                                    // key pressed event
+            if(buf[0]) eventFIFO.push(TextEvent(buf));              // text typed event (store in FIFO for next run)
+            return KeyEvent(eDOWN, keycode);                        // key pressed event
         }
         case XCB_KEY_RELEASE: {
             xkb_state_update_key(k_state, btn, XKB_KEY_UP);
@@ -429,26 +429,26 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
                 if(btn==166) return GPadButton(0, eBTN_SELECT, 0);  // Steelseries Stratus XL
                 if(btn==180) return GPadButton(0, eBTN_MODE, 0);    // Steelseries Stratus XL
             }
-            return KeyEvent(eUP, keycode);                                      // key released event
+            return KeyEvent(eUP, keycode);                          // key released event
         }
-        case XCB_CLIENT_MESSAGE: {                                              // window close event
+        case XCB_CLIENT_MESSAGE: {                                  // window close event
             if ((*(xcb_client_message_event_t*)x_event).data.data32[0] == (*atom_wm_delete_window).atom) {
                 LOGI("Closing Window\n");
                 return CloseEvent();
             }
             break;
         }
-        case XCB_CONFIGURE_NOTIFY: {                             // Window Reshape (move or resize)
+        case XCB_CONFIGURE_NOTIFY: {                                // Window Reshape (move or resize)
             auto& e = *(xcb_configure_notify_event_t*)x_event;
-            //bool se = (e.response_type & 128);                 // True if message was sent with "SendEvent"
+            //bool se = (e.response_type & 128);                    // True if message was sent with "SendEvent"
             if (e.width != shape.width || e.height != shape.height) return ResizeEvent(e.width, e.height); // window resized
             else if (e.x != shape.x || e.y != shape.y)              return MoveEvent(e.x, e.y);            // window moved
             break;
         }
-        case XCB_FOCUS_IN  : if (!m_has_focus) return FocusEvent(true);        // window gained focus
-        case XCB_FOCUS_OUT : if ( m_has_focus) return FocusEvent(false);       // window lost focus
+        case XCB_FOCUS_IN  : if (!m_has_focus) return FocusEvent(true);   // window gained focus
+        case XCB_FOCUS_OUT : if ( m_has_focus) return FocusEvent(false);  // window lost focus
 
-        case XCB_GE_GENERIC: {                                               // Multi touch screen events
+        case XCB_GE_GENERIC: {                                            // Multi touch screen events
 #ifdef ENABLE_MULTITOUCH
             xcb_input_touch_begin_event_t& te = *(xcb_input_touch_begin_event_t*)x_event;
             if(te.extension == xi_opcode) {  // check if this event is from the touch device
@@ -627,8 +627,9 @@ bool Window_xcb::ConnectGamepad(const char* path) {
                     //printf("Gamepad %d found: %s at %s\n", i, ev.name, path);
 
                     ev.SwapAB=false;  // Nintendo swaps the A and B buttons
-                    if (ev.name && (strstr(ev.name, "Nintendo") || strstr(ev.name, "Switch")))         {ev.SwapAB = true;}
-                    if (ev.name && (strstr(ev.name, "Joy-Con")  || strstr(ev.name, "Pro Controller"))) {ev.SwapAB = true;}
+                    //if (ev.name && (strstr(ev.name, "Nintendo") || strstr(ev.name, "Switch")))         {ev.SwapAB = true;}
+                    //if (ev.name && (strstr(ev.name, "Joy-Con")  || strstr(ev.name, "Pro Controller"))) {ev.SwapAB = true;}
+                    //printf("NINTENDO\n");
 
                     for(uint axis=0; axis<11; ++axis) {
                         auto& ax = ev.axis[axis];
@@ -636,7 +637,7 @@ bool Window_xcb::ConnectGamepad(const char* path) {
                         ax.max  = libevdev_get_abs_maximum(dev,axis); // axis max value
                         ax.fuzz = libevdev_get_abs_fuzz   (dev,axis); // noise level
                         ax.flat = libevdev_get_abs_flat   (dev,axis); // dead zone
-                        //printf("axis:%d min=%d max=%d fuzz=%d flat=%d\n", axis, ax.min, ax.max, ax.fuzz, ax.flat);
+                        printf("axis:%d min=%d max=%d fuzz=%d flat=%d\n", axis, ax.min, ax.max, ax.fuzz, ax.flat);
                     }
                     SetGamepadLEDs(i,1<<i);  // Set Gamepad LEDs to indicate which slot its in.
                     eventFIFO.push(GPadConnect(i, true));
@@ -729,10 +730,12 @@ void Window_xcb::ReadGamepadEvents() {
         };
 
         auto Thumb = [](int value, Evdev::Limits& a) -> float { // Apply dead-zone, normalize
-            int sign = value<0?-1:1;
-            int val  = std::max(abs(value)-a.flat,0);
-            int range= std::max(a.max-a.flat,1);
-            return (val/(float)range)*sign;
+            int center = (a.min + a.max) / 2;
+            int centered = value - center;
+            int sign  = centered<0 ? -1:1;
+            int val   = std::max(std::abs(centered) - a.flat, 0);
+            int range = a.max - center - a.flat;
+            return (val / (float)range) * sign;
         };
 
         int rc=0;
@@ -751,7 +754,7 @@ void Window_xcb::ReadGamepadEvents() {
 
                 auto& limits = ev.axis[event.code];  // min,max,fuzz,flat
                 if(isFuzz(event.value, limits)) continue;  // defuzz
-                bool isTrigger = (limits.min==0 || event.code==ABS_GAS || event.code==ABS_BRAKE);
+                bool isTrigger = (event.code==ABS_GAS || event.code==ABS_BRAKE);
                 float fval = isTrigger? Trigger(event.value, limits)
                                       : Thumb  (event.value, limits);
                 int axis = Gamepad_axismap(event.code);
