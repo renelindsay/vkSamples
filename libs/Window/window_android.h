@@ -165,7 +165,7 @@ class Window_android : public WindowBase {
                 android_app_post_exec_cmd(m_app, cmd);
             }
         }
-        ALooper_pollAll(10, NULL, NULL, NULL);  // for keyboard
+        ALooper_pollOnce(10, NULL, NULL, NULL);  // for keyboard
         //--------------------------------------------------
     };
 
