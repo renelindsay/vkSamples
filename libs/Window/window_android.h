@@ -123,7 +123,6 @@ class Window_android : public WindowBase {
     struct GPadSlots {
         int32_t deviceID=0;
         char name[256] = {};
-        bool SwapAB =false;       // Nintendo gamepads swap A and B buttons
         bool useDPad=false;       // Sony Dualshock hat emits dpad button events instead of HAT axis
     }gpads[MAX_GAMEPADS];
     //-----------------
@@ -222,9 +221,9 @@ class Window_android : public WindowBase {
             strncpy(pad.name, name.c_str(), sizeof(pad.name)-1);
             printf("Gamepad %d found: %s\n", i, pad.name);
             // NINTENDO
-            pad.SwapAB=false;  // Nintendo swaps the A and B buttons
-            if((name.find("Nintendo")>-1) || (name.find("Switch")>-1))         {pad.SwapAB = true;}
-            if((name.find("Joy-Con")>-1)  || (name.find("Pro Controller")>-1)) {pad.SwapAB = true;}
+            //bool nintendo=false;  // Nintendo
+            //if((name.find("Nintendo")>-1) || (name.find("Switch")>-1))         {nintendo = true;}
+            //if((name.find("Joy-Con")>-1)  || (name.find("Pro Controller")>-1)) {nintendo = true;}
             // SONY
             pad.useDPad = !info.hasHatAxes;
             return GPadConnect(i, true);
@@ -261,7 +260,6 @@ class Window_android : public WindowBase {
             if (AKeyEvent_getRepeatCount(a_event) == 0) {  // ignore keyboard repeat events
                 auto& pad = gpads[id];
                 uint8_t btn = Gamepad_keymap(keycode, pad.useDPad);
-                if(pad.SwapAB && btn<5){static int ABtoBA[]={0,2,1,4,3}; btn=ABtoBA[btn];}  // Nintendo: Swap A/B
                 bool down = (AKeyEvent_getAction(a_event) == AKEY_EVENT_ACTION_DOWN);
                 return GPadButton(id, btn, down);
             }

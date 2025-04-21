@@ -10,7 +10,7 @@
 #define ENABLE_MULTITOUCH
 #define ENABLE_XCB_IMAGE   // requires libxcb-image0-dev
 #define ENABLE_XCB_CURSOR  // requires libxcb-cursor-dev
-#define ENABLE_GAMEPAD     // requires libevdev-dev
+#define ENABLE_GAMEPAD     // requires libevdev-dev (8kb)
 
 //-------------------------------------------------
 #include "WindowBase.h"
@@ -36,7 +36,7 @@
 
 #include <sys/ioctl.h>
 #include <linux/input.h>
-
+#include "gamepads.h"
 #endif
 //-------------------------------------------------
 
@@ -123,6 +123,9 @@ class Window_xcb : public WindowBase {
     //------------------
     //---- Gamepad ----
 #ifdef ENABLE_GAMEPAD
+#define MAX_BTNS 16
+#define MAX_AXIS 16
+
     int inotify_fd = -1;          // gamepad inotify descriptor
     int watch_fd   = -1;          // gamepad watch descriptor
     struct Evdev {                // gamepad handle and axis ranges
@@ -130,22 +133,34 @@ class Window_xcb : public WindowBase {
         libevdev* dev = nullptr;
         char name[256] = {};      // gamepad model name
         char path[256] = {};      // eg. /dev/input/event240
-        struct Limits {
-            int min =0;           // Axis range min value
-            int max =0;           // Axis range max value
-            int fuzz=0;           // Noise level
-            int flat=0;           // Dead zone
-            int prev=0;           // previous value
-        }axis[11];
-        bool useDPad=false;       // Sony Dualshock hat emits dpad button events instead of HAT axis
-        bool SwapAB=false;        // Nintendo gamepads swap A and B buttons
+
+        struct Map {
+            struct Btns{
+                uint16_t BTN;     // BTN event code
+                int8_t  eBTN;     // eGamepadBtn
+            }b[MAX_BTNS]={};      // buttons
+
+            struct Axes{
+                uint16_t AXIS;    // ABS event code
+                int8_t  eAXIS;    // eGamepadAxis
+                int  min =0;      // Axis range min value
+                int  max =0;      // Axis range max value
+                int  fuzz=0;      // Noise level
+                int  flat=0;      // Dead zone
+                bool flip=false;  // Flip this axis
+                int  prev=0;      // previous value
+            }a[MAX_AXIS]={};      // axes
+        } map;
     } evdev[MAX_GAMEPADS];
 
-    void DetectGamepads();                           // Detect connected gamepads
-    bool ConnectGamepad(const char* path);           // eg. /dev/input/event240
-    void DisconnectGamepad(uint8_t id);              // Disconnect gamepad by id (0-3)
-    void SetGamepadLEDs(uint8_t id, uint8_t state);  // pad-id(0-3), led-bitmask(0-15)
-    void ReadGamepadEvents();                        // Process all gamepad events
+    void DetectGamepads();                                   // Detect connected gamepads
+    bool ConnectGamepad(const char* path);                   // eg. /dev/input/event240
+    void DisconnectGamepad(uint8_t id);                      // Disconnect gamepad by id (0-3)
+    void MapGamepad(uint8_t id);                             // Map gamepad btn/axis layout
+    void SetGamepadLEDs(uint8_t id, uint8_t state);          // pad-id(0-3), led-bitmask(0-15)
+    void ReadGamepadEvents();                                // Process all gamepad events
+    void GamepadBtnEvent(uint8_t id, input_event event);     // Button events
+    void GamepadAxisEvent(uint8_t id, input_event event);    // Axis events
 #endif
     //------------------
 
@@ -482,7 +497,9 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
 }
 
 EventType Window_xcb::GetEvent(bool wait_for_event) {
+#ifdef ENABLE_GAMEPAD
     ReadGamepadEvents();
+#endif
     if (!eventFIFO.isEmpty()) return *eventFIFO.pop();  // pop message from message queue buffer
     xcb_generic_event_t* x_event;
     if (wait_for_event) x_event = xcb_wait_for_event(xcb_connection);  // Blocking mode
@@ -494,7 +511,6 @@ EventType Window_xcb::GetEvent(bool wait_for_event) {
             x_event = xcb_poll_for_event(xcb_connection);  // Discard unknown events (Intel Mesa drivers spams event 35)
         } else return event;
     }
-    ReadGamepadEvents();
     return {EventType::NONE};
 }
 
@@ -548,8 +564,8 @@ void Window_xcb::SetCursor(eCursor id) {
 //---Gamepad---
 #ifdef ENABLE_GAMEPAD
 void Window_xcb::DetectGamepads() {
-    if (inotify_fd == -1) {
-        // Scan for already connected gamepads
+    if (inotify_fd == -1) {  // inotify not started yet
+        // On first run, scan for already connected gamepads
         DIR* dir = opendir("/dev/input/");
         if(dir) {
             dirent* entry;
@@ -592,7 +608,7 @@ void setGamepadLED(const char* devicePath, int LED_id, bool state) {
     event.type = EV_LED;
     event.code = LED_id;
     event.value = state ? 1 : 0;
-    write(fd, &event, sizeof(event));
+    ssize_t s=write(fd, &event, sizeof(event));
     close(fd);
 }
 
@@ -606,7 +622,7 @@ void Window_xcb::SetGamepadLEDs(uint8_t id, uint8_t state) {
 bool Window_xcb::ConnectGamepad(const char* path) {
     int fd = open(path, O_RDONLY | O_NONBLOCK);
     if(fd<0) return false;
-    struct libevdev* dev = nullptr;
+    libevdev* dev = nullptr;
     if (libevdev_new_from_fd(fd, &dev) >= 0) {
         if(libevdev_has_event_type(dev, EV_ABS)
         && libevdev_has_event_type(dev, EV_KEY)
@@ -616,29 +632,15 @@ bool Window_xcb::ConnectGamepad(const char* path) {
         && libevdev_has_event_code(dev, EV_KEY, BTN_WEST )
         && libevdev_has_event_code(dev, EV_ABS, ABS_X)
         && libevdev_has_event_code(dev, EV_ABS, ABS_Y)) {  // make sure this is a gamepad
-            for (int i = 0; i < MAX_GAMEPADS; ++i) {  // find a free slot
+            for (int i = 0; i < MAX_GAMEPADS; ++i) {       // find a free slot
                 Evdev& ev = evdev[i];
-                ev.useDPad=(!libevdev_has_event_code(dev, EV_ABS, ABS_HAT0X));  // If HAT is missing, use DPad. (for Sony Dualshock)
                 if(ev.fd < 0) {
                     ev.fd = fd;
                     ev.dev= dev;
-                    strncpy(ev.name, libevdev_get_name(dev), sizeof(ev.name)-1);               
-                    strncpy(ev.path, path, sizeof(ev.path)-1);
+                    strncpy(ev.name, libevdev_get_name(dev), sizeof(ev.name)-1);  // query gamepad name
+                    strncpy(ev.path, path, sizeof(ev.path)-1);                    // get gamepad event file path
                     //printf("Gamepad %d found: %s at %s\n", i, ev.name, path);
-
-                    ev.SwapAB=false;  // Nintendo swaps the A and B buttons
-                    //if (ev.name && (strstr(ev.name, "Nintendo") || strstr(ev.name, "Switch")))         {ev.SwapAB = true;}
-                    //if (ev.name && (strstr(ev.name, "Joy-Con")  || strstr(ev.name, "Pro Controller"))) {ev.SwapAB = true;}
-                    //printf("NINTENDO\n");
-
-                    for(uint axis=0; axis<11; ++axis) {
-                        auto& ax = ev.axis[axis];
-                        ax.min  = libevdev_get_abs_minimum(dev,axis); // axis min value
-                        ax.max  = libevdev_get_abs_maximum(dev,axis); // axis max value
-                        ax.fuzz = libevdev_get_abs_fuzz   (dev,axis); // noise level
-                        ax.flat = libevdev_get_abs_flat   (dev,axis); // dead zone
-                        printf("axis:%d min=%d max=%d fuzz=%d flat=%d\n", axis, ax.min, ax.max, ax.fuzz, ax.flat);
-                    }
+                    MapGamepad(i);           // Detect gamepad button layout
                     SetGamepadLEDs(i,1<<i);  // Set Gamepad LEDs to indicate which slot its in.
                     eventFIFO.push(GPadConnect(i, true));
                     return true;
@@ -660,44 +662,141 @@ void Window_xcb::DisconnectGamepad(uint8_t id) {
     ev.dev = 0;
     ev.name[0] = '\0';
     ev.path[0] = '\0';
-    memset(ev.axis, 0, sizeof(ev.axis));
+    memset(&ev.map, 0, sizeof(ev.map));
     //printf("Gamepad %d disconnected.\n", id);
 }
 
-int Gamepad_keymap(uint keycode) {
-    switch (keycode) {
-        case BTN_A:      return eBTN_A;      // 304
-        case BTN_B:      return eBTN_B;      // 305
-        case BTN_X:      return eBTN_X;      // 307
-        case BTN_Y:      return eBTN_Y;      // 308
-        case BTN_TL:     return eBTN_TL;     // 310
-        case BTN_TR:     return eBTN_TR;     // 311
-        case BTN_SELECT: return eBTN_SELECT; // 314
-        case BTN_START:  return eBTN_START;  // 315
-        case BTN_MODE:   return eBTN_MODE;   // 316
-        case BTN_THUMBL: return eBTN_THUMBL; // 317
-        case BTN_THUMBR: return eBTN_THUMBR; // 318
+void Window_xcb::MapGamepad(uint8_t id) {
+    Evdev& pad = evdev[id];
+    auto dev = pad.dev;
+    const char* name = libevdev_get_name(dev);
+    uint BUS=libevdev_get_id_bustype(dev);
+    uint VID=libevdev_get_id_vendor(dev);
+    uint PID=libevdev_get_id_product(dev);
+    printf("Gamepad %d: \"%s\"\n",id , name);
+    //printf("bus:%#x vendor:%#x product:%#x\n",bus, VID, PID);
+    //-----------------------------------------------------------------
+    int hatx_inx=0;  // HAT0X axis-index
+    int haty_inx=0;  // HAT0Y axis-index
+    int axis_cnt=0;  // not used
 
-        // Sony Dualshock uses 4 DPad buttons, instead of HAT0X/Y axes:
-        case BTN_DPAD_UP   : return eDPAD_UP;    //0x220  for Dualshock
-        case BTN_DPAD_DOWN : return eDPAD_DOWN;  //0x221  for Dualshock
-        case BTN_DPAD_LEFT : return eDPAD_LEFT;  //0x222  for Dualshock
-        case BTN_DPAD_RIGHT: return eDPAD_RIGHT; //0x223  for Dualshock
-        default: return 0;
+    // get the button event code list
+    for (int code=0,b=0; code<KEY_MAX && b<MAX_BTNS; code++)
+        if(libevdev_has_event_code(dev, EV_KEY, code)) pad.map.b[b++].BTN=code;
+
+    // get axis event code and limits
+    for (int code=0,a=0; code<KEY_MAX && a<MAX_AXIS; code++) {
+        if(libevdev_has_event_code(dev, EV_ABS, code)) {
+            if(code==ABS_HAT0X) hatx_inx=a;  // save the hatx index for later
+            if(code==ABS_HAT0Y) haty_inx=a;  // save the haty index for later
+            auto& axis = pad.map.a[a++];
+            axis.AXIS = code;
+            axis.min  = libevdev_get_abs_minimum(dev, code);  // axis min value
+            axis.max  = libevdev_get_abs_maximum(dev, code);  // axis max value
+            axis.fuzz = libevdev_get_abs_fuzz   (dev, code);  // noise level
+            axis.flat = libevdev_get_abs_flat   (dev, code);  // dead zone
+        }
+        axis_cnt=a;
     }
-}
+    //for(auto& line : gamepad_layouts){for(uint8_t val : line) printf("%02X ", val); printf("\n");}
 
-int Gamepad_axismap(uint axiscode) {
-    switch(axiscode) {
-        case ABS_X    : return eAXIS_LX;  //  0
-        case ABS_Y    : return eAXIS_LY;  //  1
-        case ABS_RX   : return eAXIS_RX;  //  3
-        case ABS_RY   : return eAXIS_RY;  //  4
-        case ABS_Z    : return eAXIS_RX;  //  2  // alternative mapping
-        case ABS_RZ   : return eAXIS_RY;  //  5  // alternative mapping
-        case ABS_GAS  : return eAXIS_TR;  //  9
-        case ABS_BRAKE: return eAXIS_TL;  // 10
-        default: return 0;
+    auto* p_layout = get_gamepad_layout(VID, PID, BUS, name);  // Find layout by gamepad ID
+
+    if(p_layout) {  // Gamepad found. Decode layout tokens.
+        int8_t eBTN [] = {1,2,3,4,5,6,7,8,9,10,11,12,-3,-4,-5,-6,-1,-2,13,14};  // pos-to-eBTN
+        int8_t eAXIS[] = {0,0,0,0,0,0,0,0,0, 0, 0, 0, 3, 4, 5, 6, 1, 2, 0, 0};  // pos-to-eAxis
+        auto layout = *p_layout;
+        for(int i=0; i<layout.size(); ++i) {
+            uint8_t code = layout[i];
+            //printf("%02x ",code);
+            if(code==0xff) continue;                             // not mapped
+            uint8_t num = code &0x1F;                            // extract number
+            bool flip   = code &0x80;                            // extract flip flag
+            bool isBtn  =!(code&0x60);                           // No flag for button
+            bool isHat  = code &0x40;                            // extract hat flag
+            bool isAxis = code &0x20;                            // extract axis flag
+            if(isBtn)  pad.map.b[num].eBTN  = eBTN[i];           // button event code to eGamepadBtn map
+            if(isAxis) pad.map.a[num].eAXIS = eAXIS[i];          // axis event code to eGamepadAxis map
+            if(isAxis) pad.map.a[num].flip  = flip;              // flip axis
+            if(isHat && i==8)  pad.map.a[hatx_inx].flip = flip;  // flip HAT0X
+            if(isHat && i==10) pad.map.a[haty_inx].flip = flip;  // flip HAT0Y
+            //printf("i=%d num=%d isBtn=%d isHat=%d isAxis=%d filp=%d\n",i ,num, isBtn, isHat, isAxis, flip);
+        }
+    } else {  // Gamepad not listed.  Use heuristics to guess layout.
+        bool hasHAT=!!(hatx_inx & haty_inx);
+        bool hasTrigger=false;
+
+        auto& a = pad.map.a;
+        a[0].eAXIS = eAXIS_LX;                                                                                 // left stick X (always first listed axis)
+        a[1].eAXIS = eAXIS_LY;                                                                                 // left stick Y (always second listed axis)
+        for(auto& ax : a) if(ax.AXIS==ABS_HAT0X) {ax.eAXIS=7; hasHAT=true; break;}                             // Hat X (always ABS_HAT0X, or a button)
+        for(auto& ax : a) if(ax.AXIS==ABS_HAT0Y) {ax.eAXIS=8; hasHAT=true; break;}                             // Hat Y (always ABS_HAT0Y, or a button)
+        for(auto& ax : a) if(!ax.eAXIS && ax.min==a[0].min && ax.max==a[0].max) {ax.eAXIS=eAXIS_RX; break;}    // right stick X (min/max should match left stick)
+        for(auto& ax : a) if(!ax.eAXIS && ax.min==a[0].min && ax.max==a[0].max) {ax.eAXIS=eAXIS_RY; break;}    // right stick Y
+        for(auto& ax : a) if(!ax.eAXIS && ax.min==0 && ax.max>1) {ax.eAXIS=eAXIS_TL; hasTrigger=true; break;}  // left trigger (Usually has min=0)
+        for(auto& ax : a) if(!ax.eAXIS && ax.min==0 && ax.max>1) {ax.eAXIS=eAXIS_TR; hasTrigger=true; break;}  // right trigger
+        //for(int i=0; i<axis_cnt; ++i) { auto& ax = a[i]; printf("i:%d  AXIS=%2d eAXIS=%2d  min=%5d  max=%5d  fuzz=%5d  flat=%5d  flip=%d\n", i, ax.AXIS, ax.eAXIS, ax.min, ax.max, ax.fuzz, ax.flat, ax.flip);}
+
+        bool HID_style      = ( hasHAT &&  hasTrigger);  // HID and XInput compliant (XBox)
+        bool Nintendo_style = ( hasHAT && !hasTrigger);  // Nintendo uses button triggers
+        bool Sony_style     = (!hasHAT &&  hasTrigger);  // Sony uses DPad instead of HAT
+
+        auto& btns = pad.map.b;
+        if(HID_style) {
+            for(auto& b : btns) {
+                if(b.BTN==BTN_A)       b.eBTN=eBTN_A;
+                if(b.BTN==BTN_B)       b.eBTN=eBTN_B;
+                if(b.BTN==BTN_X)       b.eBTN=eBTN_X;
+                if(b.BTN==BTN_Y)       b.eBTN=eBTN_Y;
+                if(b.BTN==BTN_TL)      b.eBTN=eBTN_TL;
+                if(b.BTN==BTN_TR)      b.eBTN=eBTN_TR;
+                if(b.BTN==BTN_THUMBL)  b.eBTN=eBTN_THUMBL;
+                if(b.BTN==BTN_THUMBR)  b.eBTN=eBTN_THUMBR;
+                if(b.BTN==BTN_SELECT)  b.eBTN=eBTN_SELECT;
+                if(b.BTN==BTN_START)   b.eBTN=eBTN_START;
+            }
+        }
+
+        if(Nintendo_style) {
+            for(auto& b : btns) {
+                if(b.BTN==0x130) b.eBTN=eBTN_A;
+                if(b.BTN==0x131) b.eBTN=eBTN_B;
+                if(b.BTN==0x132) b.eBTN=eBTN_X;
+                if(b.BTN==0x133) b.eBTN=eBTN_Y;
+                if(b.BTN==0x134) b.eBTN=eBTN_TL;
+                if(b.BTN==0x135) b.eBTN=eBTN_TR;
+                if(b.BTN==0x136) b.eBTN=-eAXIS_TL;  // button trigger
+                if(b.BTN==0x137) b.eBTN=-eAXIS_TR;  // button trigger
+                if(b.BTN==0x13a) b.eBTN=eBTN_THUMBL;
+                if(b.BTN==0x13b) b.eBTN=eBTN_THUMBR;
+                if(b.BTN==0x138) b.eBTN=eBTN_SELECT;
+                if(b.BTN==0x139) b.eBTN=eBTN_START;
+            }
+        }
+
+        if(Sony_style) {  // untested
+            for(auto& b : btns) {
+                if(b.BTN==0x130) b.eBTN=eBTN_A;
+                if(b.BTN==0x131) b.eBTN=eBTN_B;
+                if(b.BTN==0x132) b.eBTN=eBTN_X;
+                if(b.BTN==0x133) b.eBTN=eBTN_Y;
+                if(b.BTN==0x134) b.eBTN=eBTN_TL;
+                if(b.BTN==0x135) b.eBTN=eBTN_TR;
+                if(b.BTN==0x13d) b.eBTN=eBTN_THUMBL;
+                if(b.BTN==0x13e) b.eBTN=eBTN_THUMBR;
+                if(b.BTN==0x138) b.eBTN=eBTN_SELECT;
+                if(b.BTN==0x139) b.eBTN=eBTN_START;
+            }
+        }
+
+        for(auto& b : btns) {  // DPad buttons (Sony?)
+            if(b.BTN==BTN_DPAD_UP)    b.eBTN=eDPAD_UP;
+            if(b.BTN==BTN_DPAD_DOWN)  b.eBTN=eDPAD_DOWN;
+            if(b.BTN==BTN_DPAD_LEFT)  b.eBTN=eDPAD_LEFT;
+            if(b.BTN==BTN_DPAD_RIGHT) b.eBTN=eDPAD_RIGHT;
+        }
+
+        //for(int i=0; i<MAX_BTNS; ++i) {auto& b = pad.map.b[i]; printf("BTN=%d eBTN=%d\n", b.BTN, b.eBTN);}
     }
 }
 
@@ -708,63 +807,83 @@ void Window_xcb::ReadGamepadEvents() {
         Gamepad& pad = gamepad[i];
         if (!pad.active) continue;
 
-        auto Hat = [&](int val, int btnNeg, int btnPos) { // convert hat axis values to button events
-            //if(!ev.hasHat) return;
-            if((val!=-1) && ( pad.buttons[btnNeg])) eventFIFO.push(GPadButton(i, btnNeg, 0));
-            if((val!= 1) && ( pad.buttons[btnPos])) eventFIFO.push(GPadButton(i, btnPos, 0));
-            if((val==-1) && (!pad.buttons[btnNeg])) eventFIFO.push(GPadButton(i, btnNeg, 1));
-            if((val== 1) && (!pad.buttons[btnPos])) eventFIFO.push(GPadButton(i, btnPos, 1));
-        };
-
-        auto isFuzz = [](int value, Evdev::Limits& a) -> bool {
-            int delta = abs(a.prev - value);
-            if(delta<a.fuzz) return true;
-            a.prev = value;
-            return false;
-        };
-
-        auto Trigger = [](int value, Evdev::Limits& a) -> float { // Apply dead-zone, normalize
-            int val   = std::max(value-a.min-a.flat,0);
-            int range = std::max(a.max-a.min-a.flat,1);
-            return val / (float)range;
-        };
-
-        auto Thumb = [](int value, Evdev::Limits& a) -> float { // Apply dead-zone, normalize
-            int center = (a.min + a.max) / 2;
-            int centered = value - center;
-            int sign  = centered<0 ? -1:1;
-            int val   = std::max(std::abs(centered) - a.flat, 0);
-            int range = a.max - center - a.flat;
-            return (val / (float)range) * sign;
-        };
-
-        int rc=0;
+       int rc=0;
         struct input_event event;
         while ((rc=libevdev_next_event(ev.dev, LIBEVDEV_READ_FLAG_NORMAL, &event)) == 0) {
-            if (event.type == EV_KEY) {  // Button press/release
-                int btn = Gamepad_keymap(event.code);
-                if(ev.SwapAB && btn<5){static int ABtoBA[]={0,2,1,4,3}; btn=ABtoBA[btn];}  // Swap A/B and X/Y (Nintendo)
-                if((event.code < BTN_DPAD_UP) || ev.useDPad)                               // Only use DPad if missing HAT (Sony)
-                eventFIFO.push(GPadButton(i, btn, event.value));
-            }
-            else if (event.type == EV_ABS) {  // Analog axes and hat buttons
-                if(event.code == ABS_HAT0X) {Hat(event.value, eDPAD_LEFT, eDPAD_RIGHT); continue;}
-                if(event.code == ABS_HAT0Y) {Hat(event.value, eDPAD_UP,   eDPAD_DOWN);  continue;}
-                if(event.code > 10) continue;
-
-                auto& limits = ev.axis[event.code];  // min,max,fuzz,flat
-                if(isFuzz(event.value, limits)) continue;  // defuzz
-                bool isTrigger = (event.code==ABS_GAS || event.code==ABS_BRAKE);
-                float fval = isTrigger? Trigger(event.value, limits)
-                                      : Thumb  (event.value, limits);
-                int axis = Gamepad_axismap(event.code);
-                if(pad.axes[axis] == fval) continue;             // deadzone
-                if(axis==eAXIS_LY || axis==eAXIS_RY) fval=-fval; // flip y axis
-                eventFIFO.push(GPadAxis(i, axis, fval));
-            }
+            if (event.type == EV_KEY) { GamepadBtnEvent (i, event); } else // Button press/release
+            if (event.type == EV_ABS) { GamepadAxisEvent(i, event); }      // Analog axes and hat buttons
         }
         if(rc==-ENODEV) DisconnectGamepad(i);
     }
+}
+
+void Window_xcb::GamepadBtnEvent(uint8_t id, input_event event) {
+    auto& ev = evdev[id];
+    uint keycode = event.code;
+    //printf("keycode=%d (0x%3x) %d\n", keycode, keycode, event.value);
+    if(event.value>1) return;  // ignore repeats
+    for(auto& b : ev.map.b) if(keycode==b.BTN) {
+        if(event.value>1) return;
+        if(b.eBTN>0) eventFIFO.push(GPadButton(id, b.eBTN, event.value));
+        if(b.eBTN<0) eventFIFO.push(GPadAxis  (id,-b.eBTN, event.value));
+    }
+}
+
+void Window_xcb::GamepadAxisEvent(uint8_t id, input_event event) {
+    Gamepad& pad = gamepad[id];
+    Evdev&   ev  = evdev[id];
+
+    //------------------------------------------------------------------------------
+    auto find_axis = [&](uint axiscode) -> Evdev::Map::Axes& {
+        for(auto& a : ev.map.a) if(axiscode==a.AXIS) return a;
+        return ev.map.a[0];
+    };
+
+    auto Hat = [&](int val, int btnNeg, int btnPos) { // convert hat axis values to button events
+        if((val!=-1) && ( pad.buttons[btnNeg])) eventFIFO.push(GPadButton(id, btnNeg, 0));
+        if((val!= 1) && ( pad.buttons[btnPos])) eventFIFO.push(GPadButton(id, btnPos, 0));
+        if((val==-1) && (!pad.buttons[btnNeg])) eventFIFO.push(GPadButton(id, btnNeg, 1));
+        if((val== 1) && (!pad.buttons[btnPos])) eventFIFO.push(GPadButton(id, btnPos, 1));
+    };
+
+    auto isFuzz = [](int value, auto& a) -> bool { // detect fuzz events
+        int delta = abs(a.prev - value);
+        if(delta<a.fuzz) return true;
+        a.prev = value;
+        return false;
+    };
+
+    auto Trigger = [](int value, auto& a) -> float { // Apply dead-zone, normalize
+        int val   = std::max(value-a.min-a.flat,0);
+        int range = std::max(a.max-a.min-a.flat,1);
+        return val / (float)range;
+    };
+
+    auto Thumb = [](int value, auto& a) -> float { // Apply dead-zone, normalize
+        int center = (a.min + a.max) / 2;
+        int centered = value - center;
+        int sign  = centered<0 ? -1:1;
+        int val   = std::max(std::abs(centered) - a.flat, 0);
+        int range = a.max - center - a.flat;
+        return (val / (float)range) * sign;
+    };
+    //------------------------------------------------------------------------------
+
+    auto& a = find_axis(event.code);
+    int val = a.flip ? -event.value : event.value;
+    if(event.code == ABS_HAT0X) {Hat(val, eDPAD_LEFT, eDPAD_RIGHT); return;}
+    if(event.code == ABS_HAT0Y) {Hat(val, eDPAD_UP,   eDPAD_DOWN);  return;}
+    if(event.code > 10) return;         // Ignore HAT1+
+
+    if(isFuzz(event.value, a)) return;  // defuzz
+    bool isTrigger = (a.eAXIS==eAXIS_TL || a.eAXIS==eAXIS_TR);
+    float fval = isTrigger? Trigger(event.value, a)
+                          : Thumb  (event.value, a);
+
+    if(pad.axes[a.eAXIS] == fval) return;  // deadzone
+    if(a.eAXIS==eAXIS_LY || a.eAXIS==eAXIS_RY) fval=-fval; // flip y axis
+    if(a.flip) fval=-fval;
+    eventFIFO.push(GPadAxis(id, a.eAXIS, fval));
 }
 
 /*
@@ -790,12 +909,6 @@ void Window_xcb::SetGamepadRumble(int index, uint16_t weak, uint16_t strong) {  
 }
 */
 
-#else
-    void Window_xcb::DetectGamepads(){};
-    bool Window_xcb::ConnectGamepad(const char* path){};
-    void Window_xcb::DisconnectGamepad(uint8_t id){};
-    void Window_xcb::SetGamepadLEDs(uint8_t id, uint8_t state){};
-    void Window_xcb::ReadGamepadEvents(){};
 #endif
 
 
