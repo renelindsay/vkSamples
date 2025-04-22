@@ -37,6 +37,9 @@
 #ifndef TINY_GLTF_H_
 #define TINY_GLTF_H_
 
+#pragma warning(disable:4996)  // for fopen
+#define TINYGLTF_USE_FOPEN
+
 #include <array>
 #include <cassert>
 #include <cmath>  // std::fabs
@@ -49,6 +52,11 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#ifdef __ANDROID__
+#define TINYGLTF_USE_FOPEN
+#include "android_fopen.h"
+#endif
 
 // Auto-detect C++14 standard version
 #if !defined(TINYGLTF_USE_CPP14) && defined(__cplusplus) && \
@@ -3137,6 +3145,20 @@ bool GetFileSizeInBytes(size_t *filesize_out, std::string *err,
 
 bool ReadWholeFile(std::vector<unsigned char> *out, std::string *err,
                    const std::string &filepath, void *) {
+                   
+#ifdef TINYGLTF_USE_FOPEN
+    FILE* file = fopen(filepath.c_str(), "rb");
+    if(!file) if (err) { (*err) += "File open error : " + filepath + "\n"; return false;}
+    fseek(file, 0, SEEK_END);
+    uint size = ftell(file);
+    rewind(file);
+    out->resize(size);
+    void* buf = out->data();
+    fread(buf, 1, size, file); 
+    fclose(file);
+    return true;
+#endif                   
+                   
 #ifdef TINYGLTF_ANDROID_LOAD_FROM_ASSETS
   if (asset_manager) {
     AAsset *asset = AAssetManager_open(asset_manager, filepath.c_str(),
