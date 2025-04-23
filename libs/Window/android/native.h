@@ -2,12 +2,11 @@
 #define NATIVE_H
 
 #include <jni.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 #include <android/log.h>
 #include <android_native_app_glue.h>
-//#include <vulkan_wrapper.h>                      // Builds dispatch table for Vulkan functions
 #include "android_fopen.h"                       // redirect fopen, to read files from asset folder
 #include <string>
 

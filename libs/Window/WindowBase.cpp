@@ -10,13 +10,13 @@
 //--Events--
 EventType WindowBase::MouseEvent(eAction action, int16_t x, int16_t y, uint8_t btn) {
     mousepos = {x, y};
-    if (action != eMOVE) m_btnstate[btn] = (action == eDOWN);  // Keep track of button state
+    if (action != eMOVE) btnstate[btn] = (action == eDOWN);  // Keep track of button state
     EventType e = {EventType::MOUSE, {action, x, y, btn}};
     return e;
 }
 
 EventType WindowBase::KeyEvent(eAction action, uint8_t key) {
-    m_keystate[key] = (action == eDOWN);
+    keystate[key] = (action == eDOWN);
     EventType e   = {EventType::KEY};
     e.key         = {action, (eKeycode)key};
     return e;
@@ -37,7 +37,7 @@ EventType WindowBase::MoveEvent(int16_t x, int16_t y) {
 }
 
 EventType WindowBase::ResizeEvent(uint16_t width, uint16_t height) {
-    this->m_resized = true;
+    this->resized = true;
     shape.width  = width;
     shape.height = height;
     EventType e  = {EventType::RESIZE};
@@ -46,7 +46,7 @@ EventType WindowBase::ResizeEvent(uint16_t width, uint16_t height) {
 }
 
 EventType WindowBase::FocusEvent(bool has_focus) {
-    this->m_has_focus   = has_focus;
+    this->has_focus   = has_focus;
     EventType e       = {EventType::FOCUS};
     e.focus.has_focus = has_focus;
     return e;
@@ -79,21 +79,21 @@ EventType WindowBase::GPadAxis(uint8_t pad, uint8_t axis, float val) {
 }
 
 EventType WindowBase::CloseEvent() {
-    m_running = false;
+    running = false;
     return {EventType::CLOSE};
 }
 //----------
 
-void WindowBase::ShowKeyboard(bool enabled) { m_textinput = enabled; }
+void WindowBase::ShowKeyboard(bool enabled) { textinput = enabled; }
 
 bool WindowBase::ProcessEvents(bool wait_for_event) {
     EventType e = GetEvent(wait_for_event);
     while (e.tag != EventType::NONE) {
-        m_running = ProcessEvent(e);  // Call event handlers
-        if(!m_running) return false;
+        running = ProcessEvent(e);  // Call event handlers
+        if(!running) return false;
         e = GetEvent();
     }
-    return m_running;
+    return running;
 }
 
 bool WindowBase::ProcessEvent(EventType e) {

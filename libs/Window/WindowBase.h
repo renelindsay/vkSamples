@@ -31,7 +31,7 @@ struct EventType {
         struct {eAction action; int16_t x; int16_t y; uint8_t btn;} mouse;       // mouse move/click
         struct {eAction action; eKeycode keycode;                 } key;         // Keyboard key state
         struct {const char* str;                                  } text;        // Text entered
-        struct {int16_t x; int16_t y;                             } move;        // Window move
+        struct {int16_t x; int16_t y;                             } move;        // Window moved
         struct {uint16_t width; uint16_t height;                  } resize;      // Window resize
         struct {bool has_focus;                                   } focus;       // Window gained/lost focus
         struct {eAction action; float x; float y; uint8_t id;     } touch;       // multi-touch display
@@ -102,8 +102,8 @@ struct Gamepad {
 class WindowBase {
 protected:
     struct {int16_t x; int16_t y;}mousepos = {};                               // mouse position
-    bool m_btnstate[6]   = {};                                                 // mouse btn state
-    bool m_keystate[256] = {};                                                 // keyboard state
+    bool btnstate[6]   = {};                                                   // mouse btn state
+    bool keystate[256] = {};                                                   // keyboard state
     Gamepad gamepad[MAX_GAMEPADS];                                             // gamepad state
 
     EventFIFO eventFIFO;                                                       // Event message queue buffer
@@ -118,16 +118,16 @@ protected:
     EventType GPadAxis   (uint8_t pad, uint8_t axis, float val);               // Gamepad axis events
     EventType CloseEvent ();                                                   // Window closing
 
-    float m_display_scale = 1.f;
-    bool m_running;
-    bool m_textinput;
-    bool m_has_focus;                                                          // true if window has focus
-    bool m_resized;
+    float display_scale = 1.f;
+    bool running;
+    bool textinput;
+    bool has_focus;                                                          // true if window has focus
+    bool resized;
     struct shape_t { int16_t x; int16_t y; uint16_t width; uint16_t height; } shape = {};  // window shape
     std::string clipboard;                                                     // fake clipboard
 
   public:
-    WindowBase() : m_running(false), m_textinput(false), m_has_focus(false), m_resized(false){}
+    WindowBase() : running(false), textinput(false), has_focus(false), resized(false){}
     virtual ~WindowBase() {}
     virtual void Close() { eventFIFO.push(CloseEvent()); }
 
@@ -135,15 +135,15 @@ protected:
     void  GetWinPos  (int16_t& x, int16_t& y) { x = shape.x; y = shape.y; }
     void  GetWinSize (int16_t& width, int16_t& height) { width = shape.width; height = shape.height; }
     void  GetWinSize (int32_t& width, int32_t& height) { width = shape.width; height = shape.height; }
-    bool  GetKeyState(eKeycode key) { return m_keystate[key]; }                               // return true if key is pressed
-    bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? m_btnstate[btn] : 0; }               // return true if mouse btn is pressed
+    bool  GetKeyState(eKeycode key) { return keystate[key]; }                               // return true if key is pressed
+    bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? btnstate[btn] : 0; }               // return true if mouse btn is pressed
     void  GetMousePos(int16_t& x, int16_t& y) {x = mousepos.x; y = mousepos.y;}               // return mouse x,y position
     Gamepad& GetGamepad(uint8_t pad) {return gamepad[pad];}                                   // return the gamepad state
 
-    bool IsRunning() { return m_running; }
+    bool IsRunning() { return running; }
     uint Width() {return shape.width;}
     uint Height(){return shape.height;}
-    bool Resized() { bool resized = m_resized; m_resized = false; return resized; }
+    bool Resized() { bool resized = resized; resized = false; return resized; }
     virtual float GetDisplayScale() {return 1.f;}
 
     virtual const char* GetClipboardText() {return clipboard.c_str(); }  // Fake clipboard. Works only locally.
@@ -151,7 +151,7 @@ protected:
 
     //--Control functions--
     virtual void ShowKeyboard(bool enabled);                      // Shows the Android soft-keyboard. //TODO: Enable TextEvent?
-    virtual bool TextInput() { return m_textinput; }              // Returns true if text input is enabled TODO: Fix this
+    virtual bool TextInput() { return textinput; }                // Returns true if text input is enabled TODO: Fix this
     virtual void SetTitle(const char* title) {}
     virtual void SetWinPos (uint x, uint y) {}
     virtual void SetWinSize(uint w, uint h) {}

@@ -199,7 +199,7 @@ Window_xcb::Window_xcb(const char* title, uint width, uint height) {
 void Window_xcb::Create(const char* title, uint width, uint height) {
     shape.width  = width;
     shape.height = height;
-    m_running      = true;
+    running      = true;
 
     LOGI("Creating XCB-Window...\n");
 
@@ -460,8 +460,8 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
             else if (e.x != shape.x || e.y != shape.y)              return MoveEvent(e.x, e.y);            // window moved
             break;
         }
-        case XCB_FOCUS_IN  : if (!m_has_focus) return FocusEvent(true);   // window gained focus
-        case XCB_FOCUS_OUT : if ( m_has_focus) return FocusEvent(false);  // window lost focus
+        case XCB_FOCUS_IN  : if (!has_focus) return FocusEvent(true);   // window gained focus
+        case XCB_FOCUS_OUT : if ( has_focus) return FocusEvent(false);  // window lost focus
 
         case XCB_GE_GENERIC: {                                            // Multi touch screen events
 #ifdef ENABLE_MULTITOUCH
@@ -530,8 +530,8 @@ float Window_xcb::GetDisplayScale() {
         }
     }
     //printf("Monitor DPI: %f\n", dpi);
-    m_display_scale = dpi / 96.f;
-    return m_display_scale;
+    display_scale = dpi / 96.f;
+    return display_scale;
 }
 
 #ifdef ENABLE_XCB_IMAGE

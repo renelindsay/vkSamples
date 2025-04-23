@@ -123,7 +123,7 @@ void android_main(struct android_app* state) {
 //============================================
 
 //========================UGLY JNI code for showing the Keyboard========================
-//ANativeActivity_showSoftInput(m_app->activity, ANATIVEACTIVITY_SHOW_SOFT_INPUT_IMPLICIT); // C++, but requires Android 10 with API 29+.
+//ANativeActivity_showSoftInput(app->activity, ANATIVEACTIVITY_SHOW_SOFT_INPUT_IMPLICIT); // C++, but requires Android 10 with API 29+.
 
 #define CALL_OBJ_METHOD( OBJ,METHOD,SIGNATURE, ...) jniEnv->CallObjectMethod (OBJ, jniEnv->GetMethodID(jniEnv->GetObjectClass(OBJ),METHOD,SIGNATURE), ##__VA_ARGS__)
 #define CALL_BOOL_METHOD(OBJ,METHOD,SIGNATURE, ...) jniEnv->CallBooleanMethod(OBJ, jniEnv->GetMethodID(jniEnv->GetObjectClass(OBJ),METHOD,SIGNATURE), ##__VA_ARGS__)

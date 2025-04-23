@@ -40,10 +40,10 @@ const unsigned char WIN32_TO_HID[256] = {
 };
 //=============================Win32============================
 class Window_win32 : public WindowBase {
-    HINSTANCE m_hInstance;
-    HWND m_hWnd;
+    HINSTANCE hInstance;
+    HWND hWnd;
     CMTouch MTouch;       // Multi-Touch device
-    HBITMAP m_DIB = 0;    // For ShowImage().  Holds image to display.
+    HBITMAP DIB = 0;    // For ShowImage().  Holds image to display.
     HCURSOR cursors[12];  // For mouse cursors
 
     void Create(const char* title="Window", uint width=640, uint height=480);
@@ -57,7 +57,7 @@ public:
     Window_win32(const char* title, uint width, uint height);
     virtual ~Window_win32();
     EventType GetEvent(bool wait_for_event = false);
-    const void* GetNativeHandle() const {return &m_hInstance;};
+    const void* GetNativeHandle() const {return &hInstance;};
     float GetDisplayScale();
     void ShowImage(uint32_t* buf, uint32_t width, uint32_t height);
     void SetCursor(eCursor id);
@@ -71,7 +71,7 @@ public:
 #ifdef WINDOW_IMPLEMENTATION
 
 //=====================Win32 IMPLEMENTATION=====================
-LRESULT CALLBACK WndProc(HWND m_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 Window_win32::Window_win32(const char* title, uint width, uint height) {
     Create(title, width, height);
@@ -80,10 +80,10 @@ Window_win32::Window_win32(const char* title, uint width, uint height) {
 void Window_win32::Create(const char* title, uint width, uint height) {
     shape.width  = width;
     shape.height = height;
-    m_running      = true;
+    running      = true;
     LOGI("Creating Win32 Window...\n");
 
-    m_hInstance = GetModuleHandle(NULL);
+    hInstance = GetModuleHandle(NULL);
 
     // Initialize the window class structure:
     WNDCLASSEX win_class;
@@ -92,7 +92,7 @@ void Window_win32::Create(const char* title, uint width, uint height) {
     win_class.lpfnWndProc   = WndProc;
     win_class.cbClsExtra    = 0;
     win_class.cbWndExtra    = 0;
-    win_class.hInstance     = m_hInstance;
+    win_class.hInstance     = hInstance;
     win_class.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
     win_class.hCursor       = LoadCursor(NULL, IDC_ARROW);
     win_class.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
@@ -106,7 +106,7 @@ void Window_win32::Create(const char* title, uint width, uint height) {
     // Create window with the registered class:
     RECT wr = {0, 0, (LONG)width, (LONG)height};
     AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);
-    m_hWnd = CreateWindowEx(0,
+    hWnd = CreateWindowEx(0,
                           title,                                          // class name
                           title,                                          // app name
                           WS_VISIBLE | WS_SYSMENU | WS_OVERLAPPEDWINDOW,  // window style
@@ -115,9 +115,9 @@ void Window_win32::Create(const char* title, uint width, uint height) {
                           wr.bottom - wr.top,                             // height
                           NULL,                                           // handle to parent
                           NULL,                                           // handle to menu
-                          m_hInstance,                                    // hInstance
+                          hInstance,                                    // hInstance
                           NULL);                                          // no extra parameters
-    assert(m_hWnd && "Failed to create a window.");
+    assert(hWnd && "Failed to create a window.");
 
     cursors[0] = LoadCursor(NULL, IDC_ARROW);       // Arrow
     cursors[1] = LoadCursor(NULL, IDC_IBEAM);       // Caret (Text Input)
@@ -133,12 +133,12 @@ void Window_win32::Create(const char* title, uint width, uint height) {
     eventFIFO.push(ResizeEvent(width, height));
 }
 
-Window_win32::~Window_win32() { DestroyWindow(m_hWnd); }
+Window_win32::~Window_win32() { DestroyWindow(hWnd); }
 
-void Window_win32::SetTitle(const char* title) { SetWindowText(m_hWnd, title); }
+void Window_win32::SetTitle(const char* title) { SetWindowText(hWnd, title); }
 
 void Window_win32::SetWinPos(uint x, uint y) {
-    SetWindowPos(m_hWnd, NULL, x, y, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
+    SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
     if (x != shape.x || y != shape.y) eventFIFO.push(MoveEvent(x, y));  // Trigger window moved event
 }
 
@@ -147,7 +147,7 @@ void Window_win32::SetWinSize(uint w, uint h) {
     AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);  // Add border size to create desired client area size
     int total_width = wr.right - wr.left;
     int total_height = wr.bottom - wr.top;
-    SetWindowPos(m_hWnd, NULL, 0, 0, total_width, total_height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
+    SetWindowPos(hWnd, NULL, 0, 0, total_width, total_height, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOMOVE);
     if ((w != shape.width) | (h != shape.height)) eventFIFO.push(ResizeEvent(w, h));  // Trigger resize event
 }
 
@@ -158,9 +158,9 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
     // EventType event;
     if (!eventFIFO.isEmpty()) return *eventFIFO.pop();
 
-    if (m_running) {
+    if (running) {
         MSG msg = {};
-        if(wait_for_event) m_running = (GetMessage(&msg, NULL, 16, 0) > 0);           // Blocking mode
+        if(wait_for_event) running = (GetMessage(&msg, NULL, 16, 0) > 0);           // Blocking mode
         else if(!PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) return {EventType::NONE};  // Non-blocking mode
 
         TranslateMessage(&msg);
@@ -171,8 +171,8 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
         if (msg.message == WM_KEYDOWN || msg.message == WM_KEYUP) {
             if (msg.wParam == VK_CONTROL) msg.wParam = (msg.lParam & (1 << 24)) ? VK_RCONTROL : VK_LCONTROL;
             if (msg.wParam == VK_SHIFT) {
-                if (!!(::GetKeyState(VK_LSHIFT) & 128) != GetKeyState(eKEY_LeftShift )) PostMessage(m_hWnd, msg.message, VK_LSHIFT, 0);
-                if (!!(::GetKeyState(VK_RSHIFT) & 128) != GetKeyState(eKEY_RightShift)) PostMessage(m_hWnd, msg.message, VK_RSHIFT, 0);
+                if (!!(::GetKeyState(VK_LSHIFT) & 128) != GetKeyState(eKEY_LeftShift )) PostMessage(hWnd, msg.message, VK_LSHIFT, 0);
+                if (!!(::GetKeyState(VK_RSHIFT) & 128) != GetKeyState(eKEY_RightShift)) PostMessage(hWnd, msg.message, VK_RSHIFT, 0);
                 return {EventType::NONE};
             }
         } else if (msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP) {
@@ -211,41 +211,41 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
             case WM_ACTIVE: { return FocusEvent(msg.wParam != WA_INACTIVE); }
 
             case WM_RESHAPE: {
-                if (!m_has_focus) {
-                    PostMessage(m_hWnd, WM_RESHAPE, msg.wParam, msg.lParam);  // Repost this event to the queue
+                if (!has_focus) {
+                    PostMessage(hWnd, WM_RESHAPE, msg.wParam, msg.lParam);  // Repost this event to the queue
                     return FocusEvent(true);                                // Activate window before reshape
                 }
 
                 RECT r;
-                GetClientRect(m_hWnd, &r);
+                GetClientRect(hWnd, &r);
                 uint16_t w = (uint16_t)(r.right - r.left);
                 uint16_t h = (uint16_t)(r.bottom - r.top);
                 if (w != shape.width || h != shape.height) return ResizeEvent(w, h);  // window resized
 
-                GetWindowRect(m_hWnd, &r);
+                GetWindowRect(hWnd, &r);
                 int16_t x = (int16_t)r.left;
                 int16_t y = (int16_t)r.top;
                 if (x != shape.x || y != shape.y) return MoveEvent(x, y);  // window moved
                 break;
             }
             case WM_CLOSE: {
-                if(msg.hwnd == m_hWnd) {
+                if(msg.hwnd == hWnd) {
                     LOGI("WM_CLOSE\n");
-                    if(m_DIB) {DeleteObject(m_DIB); m_DIB=0;}
+                    if(DIB) {DeleteObject(DIB); DIB=0;}
                     return CloseEvent();
                 }
                 break;
             }
             case WM_PAINT: {
-                if(m_DIB) {
+                if(DIB) {
                     PAINTSTRUCT ps{};
-                    HDC hDC = BeginPaint(m_hWnd, &ps);
+                    HDC hDC = BeginPaint(hWnd, &ps);
                     HDC hMemDC = CreateCompatibleDC(hDC);
-                    HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemDC, m_DIB);
+                    HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemDC, DIB);
                     BitBlt(hDC, 0, 0, ps.rcPaint.right, ps.rcPaint.bottom, hMemDC, 0, 0, SRCCOPY);
                     SelectObject(hMemDC, hOldBitmap);
                     DeleteDC(hMemDC);
-                    EndPaint(m_hWnd, &ps);
+                    EndPaint(hWnd, &ps);
                 }
                 break;
             }
@@ -263,7 +263,7 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
                 if (GetPointerInfo(GET_POINTERID_WPARAM(msg.wParam), &pointerInfo)) {
                     uint  id = pointerInfo.pointerId;
                     POINT pt = pointerInfo.ptPixelLocation;
-                    ScreenToClient(m_hWnd, &pt);
+                    ScreenToClient(hWnd, &pt);
                     switch (msg.message) {
                         case WM_POINTERDOWN  : return MTouch.Event_by_ID(eDOWN, x, y,  0, id);  // touch down event
                         case WM_POINTERUPDATE: return MTouch.Event_by_ID(eMOVE, x, y, id, id);  // touch move event
@@ -282,10 +282,10 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
 
 static bool inClientArea = false;
 // MS-Windows event handling function:
-LRESULT CALLBACK WndProc(HWND m_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
         case WM_CLOSE:
-            PostMessage(m_hWnd, WM_CLOSE, 0, 0);  // for OnCloseEvent
+            PostMessage(hWnd, WM_CLOSE, 0, 0);  // for OnCloseEvent
             return 0;
         case WM_DESTROY:
             LOGI("WM_DESTROY\n");
@@ -304,10 +304,10 @@ LRESULT CALLBACK WndProc(HWND m_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
             POINT pt;
             pt.x = GET_X_LPARAM(lParam);
             pt.y = GET_Y_LPARAM(lParam);
-            ScreenToClient(m_hWnd, &pt);
+            ScreenToClient(hWnd, &pt);
 
             RECT rect;
-            GetClientRect(m_hWnd, &rect);
+            GetClientRect(hWnd, &rect);
 
             // Flag if mouse is in client area (for mouse cursor)
             inClientArea = ((pt.x > rect.left)&&(pt.x < rect.right)
@@ -319,22 +319,22 @@ LRESULT CALLBACK WndProc(HWND m_hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 //            wprintf(L"WM_IME_CHAR : %c\n", (wchar_t)wParam);
 //            return 0;
 
-        case WM_SIZE         : { PostMessage(m_hWnd, WM_RESHAPE, 0, 0);          break; }
-        case WM_EXITSIZEMOVE : { PostMessage(m_hWnd, WM_RESHAPE, 0, 0);          break; }
-        case WM_ACTIVATE     : { PostMessage(m_hWnd, WM_ACTIVE, wParam, lParam); break; }
+        case WM_SIZE         : { PostMessage(hWnd, WM_RESHAPE, 0, 0);          break; }
+        case WM_EXITSIZEMOVE : { PostMessage(hWnd, WM_RESHAPE, 0, 0);          break; }
+        case WM_ACTIVATE     : { PostMessage(hWnd, WM_ACTIVE, wParam, lParam); break; }
         default: break;
     }
-    return DefWindowProc(m_hWnd, uMsg, wParam, lParam);
+    return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
 float Window_win32::GetDisplayScale() {
-    int dpi = GetDpiForWindow(m_hWnd);
+    int dpi = GetDpiForWindow(hWnd);
     //printf("dpi = %d\n", dpi);
     return dpi/96.f;
 }
 
 void Window_win32::ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {  // using GDI only
-    if(m_DIB) {DeleteObject(m_DIB); m_DIB=0;}  // delete previous bitmap
+    if(DIB) {DeleteObject(DIB); DIB=0;}  // delete previous bitmap
     BITMAPINFO bmi{};
     bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bmi.bmiHeader.biWidth = width;
@@ -344,9 +344,9 @@ void Window_win32::ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {  
     bmi.bmiHeader.biCompression = BI_RGB;
 
     HDC hdc = GetDC(0);
-    m_DIB = CreateDIBitmap(hdc, &bmi.bmiHeader, CBM_INIT, buf, &bmi, DIB_RGB_COLORS);
+    DIB = CreateDIBitmap(hdc, &bmi.bmiHeader, CBM_INIT, buf, &bmi, DIB_RGB_COLORS);
     ReleaseDC(NULL, hdc);
-    InvalidateRect(m_hWnd, NULL, false);
+    InvalidateRect(hWnd, NULL, false);
 }
 
 void Window_win32::SetCursor(eCursor id) {      // Override mouse cursor,

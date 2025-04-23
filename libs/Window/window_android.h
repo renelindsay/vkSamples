@@ -17,6 +17,8 @@
 #include <string>
 #include <cstring>
 
+//#include "jnib.h"
+
 #undef  repeat
 #define repeat(COUNT) for (uint32_t i = 0; i < COUNT; ++i)
 #define MIN(A,B) (((A)<(B))?(A):(B));
@@ -77,6 +79,9 @@ static std::vector<int> AInputQueue_getDeviceIds() {
 struct GamepadInfo {
     std::string name;
     bool hasHatAxes;
+    uint16_t  VID;
+    uint16_t  PID;
+    //uint8_t   BUS;
 };
 
 static std::string jstringToStdString(JNIEnv* env, jstring jStr) {
@@ -93,18 +98,26 @@ static GamepadInfo GetGamepadInfo(int deviceId) {
     jobject obj = Android_App->activity->clazz;  // native activity
     jvm->AttachCurrentThread(&env, nullptr);
     GamepadInfo info;
-    //get gamepad hame
+    //get gamepad name, VID, PID
     jclass inputDeviceClass = env->FindClass("android/view/InputDevice");
     jmethodID getDeviceMethod = env->GetStaticMethodID(inputDeviceClass, "getDevice", "(I)Landroid/view/InputDevice;");
     jobject inputDevice = env->CallStaticObjectMethod(inputDeviceClass, getDeviceMethod, deviceId);
+    // get name
     jmethodID getNameMethod = env->GetMethodID(inputDeviceClass, "getName", "()Ljava/lang/String;");
     jstring jName = (jstring)env->CallObjectMethod(inputDevice, getNameMethod);
     info.name = jstringToStdString(env, jName);
     env->DeleteLocalRef(jName);
+    // get vid,pid
+    jmethodID getVendorIdMethod = env->GetMethodID(inputDeviceClass, "getVendorId", "()I");
+    jmethodID getProductIdMethod = env->GetMethodID(inputDeviceClass, "getProductId", "()I");
+    jint vid = env->CallIntMethod(inputDevice, getVendorIdMethod);
+    jint pid = env->CallIntMethod(inputDevice, getProductIdMethod);
+    info.VID = static_cast<uint16_t>(vid);
+    info.PID = static_cast<uint16_t>(pid);
     //gamepad has hat?
     jmethodID getMotionRangeMethod = env->GetMethodID(inputDeviceClass, "getMotionRange", "(I)Landroid/view/InputDevice$MotionRange;");
-    jobject hatXRange = env->CallObjectMethod(inputDevice, getMotionRangeMethod, AMOTION_EVENT_AXIS_HAT_X);
-    jobject hatYRange = env->CallObjectMethod(inputDevice, getMotionRangeMethod, AMOTION_EVENT_AXIS_HAT_Y);
+    jobject hatXRange = env->CallObjectMethod(inputDevice, getMotionRangeMethod, (int)AMOTION_EVENT_AXIS_HAT_X);
+    jobject hatYRange = env->CallObjectMethod(inputDevice, getMotionRangeMethod, (int)AMOTION_EVENT_AXIS_HAT_Y);
     info.hasHatAxes = (hatXRange && hatYRange);
     // Cleanup
     env->DeleteLocalRef(inputDevice);
@@ -116,7 +129,7 @@ static GamepadInfo GetGamepadInfo(int deviceId) {
 //--------------------------------------------------------------
 
 class Window_android : public WindowBase {
-    android_app* m_app = 0;
+    android_app* app = 0;
     CMTouch MTouch;
 
     //---- Gamepad ----
@@ -136,33 +149,33 @@ class Window_android : public WindowBase {
     void Create(const char* title="", uint width=640, uint height=480) {
         shape.width  = 0;  // width;
         shape.height = 0;  // height;
-        m_running    = true;
+        running      = true;
         LOGI("Creating Android-Window...\n");
-        m_app = Android_App;
+        app = Android_App;
 
         //---Wait for window to be created AND gain focus---
-        while (!m_has_focus) {
+        while (!has_focus) {
             int events = 0;
             struct android_poll_source* source;
             int id = ALooper_pollOnce(100, NULL, &events, (void**)&source);
             if (id == LOOPER_ID_MAIN) {
-                int8_t cmd = android_app_read_cmd(m_app);
-                android_app_pre_exec_cmd(m_app, cmd);
-                if (m_app->onAppCmd != NULL) m_app->onAppCmd(m_app, cmd);
+                int8_t cmd = android_app_read_cmd(app);
+                android_app_pre_exec_cmd(app, cmd);
+                if (app->onAppCmd != NULL) app->onAppCmd(app, cmd);
                 if (cmd == APP_CMD_INIT_WINDOW) {
-                    shape.width  = (uint16_t)ANativeWindow_getWidth (m_app->window);
-                    shape.height = (uint16_t)ANativeWindow_getHeight(m_app->window);
+                    shape.width  = (uint16_t)ANativeWindow_getWidth (app->window);
+                    shape.height = (uint16_t)ANativeWindow_getHeight(app->window);
                     eventFIFO.push(ResizeEvent(shape.width, shape.height));        // post window-resize event
 
                     //Get device configuration for dp scaling
                     AConfiguration* config = AConfiguration_new();
-                    AConfiguration_fromAssetManager(config, m_app->activity->assetManager);
+                    AConfiguration_fromAssetManager(config, app->activity->assetManager);
                     int32_t dpi = AConfiguration_getDensity(config);
-                    m_display_scale = dpi / 160.0;
+                    display_scale = dpi / 160.0;
                     AConfiguration_delete(config);
                 }
                 if (cmd == APP_CMD_GAINED_FOCUS) eventFIFO.push(FocusEvent(true)); // post focus-event
-                android_app_post_exec_cmd(m_app, cmd);
+                android_app_post_exec_cmd(app, cmd);
             }
         }
         ALooper_pollOnce(10, NULL, NULL, NULL);  // for keyboard
@@ -219,7 +232,7 @@ class Window_android : public WindowBase {
             GamepadInfo info = GetGamepadInfo(deviceID);
             std::string name = info.name;
             strncpy(pad.name, name.c_str(), sizeof(pad.name)-1);
-            printf("Gamepad %d found: %s\n", i, pad.name);
+            printf("Gamepad %d found: %s (VID:%x PID:%x)\n", i, pad.name, info.VID, info.PID);
             // NINTENDO
             //bool nintendo=false;  // Nintendo
             //if((name.find("Nintendo")>-1) || (name.find("Switch")>-1))         {nintendo = true;}
@@ -229,6 +242,9 @@ class Window_android : public WindowBase {
             return GPadConnect(i, true);
         }
         return {EventType::NONE};
+    }
+
+    void MapGamepad() {
     }
 
     void MonitorGamepads() {
@@ -393,9 +409,9 @@ class Window_android : public WindowBase {
         uint8_t bestBtn = GetBtnState(1) ? 1 : GetBtnState(2) ? 2 : GetBtnState(3) ? 3 : 0;
 
         uint8_t btn = 0;  // get button that changed
-        if(m_btnstate[3] != (buttons & AMOTION_EVENT_BUTTON_SECONDARY)) btn = 3;
-        if(m_btnstate[2] != (buttons & AMOTION_EVENT_BUTTON_TERTIARY)) btn = 2;
-        if(m_btnstate[1] != (buttons & AMOTION_EVENT_BUTTON_PRIMARY)) btn = 1;
+        if(btnstate[3] != (buttons & AMOTION_EVENT_BUTTON_SECONDARY)) btn = 3;
+        if(btnstate[2] != (buttons & AMOTION_EVENT_BUTTON_TERTIARY)) btn = 2;
+        if(btnstate[1] != (buttons & AMOTION_EVENT_BUTTON_PRIMARY)) btn = 1;
 
         switch (action) {
             case AMOTION_EVENT_ACTION_BUTTON_PRESS   : event = MouseEvent(eDOWN, x, y, btn);     break;
@@ -422,29 +438,30 @@ class Window_android : public WindowBase {
         struct android_poll_source* source;
         int timeoutMillis = wait_for_event ? -1 : 0; // Blocking or non-blocking mode
         int id = ALooper_pollOnce(timeoutMillis, NULL, &events, (void**)&source);
-        // ALooper_pollAll(0, NULL,&events,(void**)&source);
 
         // if(id>=0) printf("id=%d events=%d, source=%d",id,(int)events, source[0]);
         // if(source) source->process(app, source);
 
         if (id == LOOPER_ID_MAIN) {
-            int8_t cmd = android_app_read_cmd(m_app);
-            android_app_pre_exec_cmd(m_app, cmd);
-            if (m_app->onAppCmd != NULL) m_app->onAppCmd(m_app, cmd);
+            int8_t cmd = android_app_read_cmd(app);
+            if (cmd == APP_CMD_TERM_WINDOW) return event;  // prevent crash when mouse connects
+            android_app_pre_exec_cmd(app, cmd);
+            if (app->onAppCmd != NULL) app->onAppCmd(app, cmd);
             switch (cmd) {
                 case APP_CMD_GAINED_FOCUS: event = FocusEvent(true);  break;
                 case APP_CMD_LOST_FOCUS  : event = FocusEvent(false); break;
                 default: break;
             }
-            android_app_post_exec_cmd(m_app, cmd);
+            android_app_post_exec_cmd(app, cmd);
             return event;
         } else if (id == LOOPER_ID_INPUT) {
+            if(!app->inputQueue) printf("No QUEUE!\n");
             AInputEvent* a_event = NULL;
-            while (AInputQueue_getEvent(m_app->inputQueue, &a_event) >= 0) {
+            while (AInputQueue_getEvent(app->inputQueue, &a_event) >= 0) {
                 //LOGV("Event: source=0x%4x type=%d\n", AInputEvent_getSource(a_event),AInputEvent_getType(a_event));
-                if (AInputQueue_preDispatchEvent(m_app->inputQueue, a_event)) { continue; }
+                if (AInputQueue_preDispatchEvent(app->inputQueue, a_event)) { continue; }
                 int32_t handled = 0;
-                if (m_app->onInputEvent) handled = m_app->onInputEvent(m_app, a_event);
+                if (app->onInputEvent) handled = app->onInputEvent(app, a_event);
 
                 int32_t source = AInputEvent_getSource(a_event);
                 //bool isClassButton   = (source & AINPUT_SOURCE_CLASS_BUTTON);
@@ -465,35 +482,35 @@ class Window_android : public WindowBase {
                 if(!event && isGamepad)  {event = GetGPadButtonEvent (a_event);}
                 if(!event && isJoystick) {event = GetGPadAxisEvent   (a_event);}
                 if(!event && isTouch)    {event = GetTouchscreenEvent(a_event);}
-                if(!event && isMouse)    {event = GetMouseEvent      (a_event); handled=1;}
+                if(!event && isMouse)    {event = GetMouseEvent      (a_event);}
                 handled |= event;  // if an event was created, mark it as handled
-handled = 1;
+
                 if(!event)
                   if (!eventFIFO.isEmpty()) event = *eventFIFO.pop();
-                AInputQueue_finishEvent(m_app->inputQueue, a_event, handled);
+                AInputQueue_finishEvent(app->inputQueue, a_event, handled);
                 return event;
             }
         }  // else if (id == LOOPER_ID_USER) { printf("LOOPER_ID_USER\n");}
 
         MonitorGamepads();
-        if (m_app->destroyRequested) return CloseEvent();  // Check if we are exiting.
+        if (app->destroyRequested) return CloseEvent();  // Check if we are exiting.
         return {};
     };
     //--------------------------------------------------
 
     //--Show / Hide keyboard--
     void ShowKeyboard(bool enabled) {
-        m_textinput = enabled;
+        textinput = enabled;
         ::ShowKeyboard(enabled);
         LOGI("%s keyboard", enabled ? "Show" : "Hide");
     }
 
-    virtual const void* GetNativeHandle() const {return m_app->window;};
+    virtual const void* GetNativeHandle() const {return app->window;};
 
-    float GetDisplayScale() { return m_display_scale; }
+    float GetDisplayScale() { return display_scale; }
 
     virtual void ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {
-        auto& wnd = m_app->window;
+        auto& wnd = app->window;
         int w = ANativeWindow_getWidth(wnd);
         int h = ANativeWindow_getHeight(wnd);
         int s = GetDisplayScale();
