@@ -17,7 +17,7 @@
 #include <string>
 #include <cstring>
 
-//#include "jnib.h"
+#include "JClass.h"
 
 #undef  repeat
 #define repeat(COUNT) for (uint32_t i = 0; i < COUNT; ++i)
@@ -49,6 +49,7 @@ const unsigned char ANDROID_TO_HID[256] = {
 //==========================Android=============================
 
 //------------------------ JNI Wrappers ------------------------
+/*
 #define CALL_OBJ_METHOD( OBJ,METHOD,SIGNATURE, ...) env->CallObjectMethod (OBJ, env->GetMethodID(env->GetObjectClass(OBJ),METHOD,SIGNATURE), ##__VA_ARGS__)
 //#define CALL_BOOL_METHOD(OBJ,METHOD,SIGNATURE, ...) env->CallBooleanMethod(OBJ, env->GetMethodID(env->GetObjectClass(OBJ),METHOD,SIGNATURE), __VA_ARGS__)
 #define GET_STATIC_OBJ_FIELD(CLASS,FIELD,SIGNATURE) env->GetStaticObjectField(CLASS, env->GetStaticFieldID(CLASS, FIELD, SIGNATURE))
@@ -75,15 +76,21 @@ static std::vector<int> AInputQueue_getDeviceIds() {
     jvm->DetachCurrentThread();  // Finished with the JVM.
     return gamepadIds;
 }
+*/
+static std::vector<int> AInputQueue_getDeviceIds() {
+    JContext context;
+    JInputManager inputManager = context.getSystemService(context.INPUT_SERVICE());
+    return inputManager.getInputDeviceIds();
+}
 
 struct GamepadInfo {
     std::string name;
-    bool hasHatAxes;
+    bool hasHatAxes;  // not used
     uint16_t  VID;
     uint16_t  PID;
     //uint8_t   BUS;
 };
-
+/*
 static std::string jstringToStdString(JNIEnv* env, jstring jStr) {
     if (!jStr) return "";
     const char* chars = env->GetStringUTFChars(jStr, nullptr);
@@ -120,11 +127,48 @@ static GamepadInfo GetGamepadInfo(int deviceId) {
     jobject hatYRange = env->CallObjectMethod(inputDevice, getMotionRangeMethod, (int)AMOTION_EVENT_AXIS_HAT_Y);
     info.hasHatAxes = (hatXRange && hatYRange);
     // Cleanup
+
+    env->DeleteLocalRef(hatXRange);
+    env->DeleteLocalRef(hatYRange);
     env->DeleteLocalRef(inputDevice);
     env->DeleteLocalRef(inputDeviceClass);
     jvm->DetachCurrentThread();
     return info;
 }
+*/
+static GamepadInfo GetGamepadInfo(int deviceId) {
+    JInputDevice device(deviceId);
+    GamepadInfo info;
+    info.name = device.getName();
+    info.VID  = device.getVendorId();
+    info.PID  = device.getProductId();
+    JMotionRange hatXRange = device.getMotionRange(AMOTION_EVENT_AXIS_HAT_X);
+    JMotionRange hatYRange = device.getMotionRange(AMOTION_EVENT_AXIS_HAT_Y);
+    info.hasHatAxes = (hatXRange.obj && hatYRange.obj);
+
+    printf("NAME=%s\n", info.name.c_str());
+
+    // list axes
+    auto list = device.getMotionRanges();
+    printf("List size:%d\n", list.size());
+    for(int i=0; i<list.size(); ++i) {
+        JMotionRange item = list.get(i);
+        if((item.getSource() & AINPUT_SOURCE_JOYSTICK)==false) continue;
+        if(item.getAxis() > 28) continue;
+        printf("Axis=%2d Source=0x%8x Min=% f Max=% f Range=%f Flat=%f Fuzz=%f Res=%f\n", item.getAxis(), item.getSource(), item.getMin(), item.getMax(), item.getRange(), item.getFlat(), item.getFuzz(), item.getResolution());
+    }
+
+    // list buttons
+    for (int keycode = 0; keycode <= 110; ++keycode) {
+        if (device.hasKey(keycode)) {
+            printf("btn:%d\n", keycode);
+        }
+    }
+
+    return info;
+}
+
+
 
 //--------------------------------------------------------------
 
@@ -136,7 +180,6 @@ class Window_android : public WindowBase {
     struct GPadSlots {
         int32_t deviceID=0;
         char name[256] = {};
-        bool useDPad=false;       // Sony Dualshock hat emits dpad button events instead of HAT axis
     }gpads[MAX_GAMEPADS];
     //-----------------
 
@@ -192,7 +235,7 @@ class Window_android : public WindowBase {
     virtual ~Window_android(){}
 
     //-------------------- GAMEPAD ---------------------
-    int Gamepad_keymap(uint keycode, bool useDPAD=false) {
+    int Gamepad_keymap(uint keycode) {
         switch (keycode) {
             case AKEYCODE_BUTTON_A:      return eBTN_A;      // 96
             case AKEYCODE_BUTTON_B:      return eBTN_B;      // 97
@@ -205,14 +248,10 @@ class Window_android : public WindowBase {
             case AKEYCODE_BUTTON_MODE:   return eBTN_MODE;   // 110
             case AKEYCODE_BUTTON_THUMBL: return eBTN_THUMBL; // 106
             case AKEYCODE_BUTTON_THUMBR: return eBTN_THUMBR; // 107
-            //default: return 0;
-        }
-        if(useDPAD)
-        switch (keycode) {
-            case AKEYCODE_DPAD_UP:    return eDPAD_UP;      // 19
-            case AKEYCODE_DPAD_DOWN:  return eDPAD_DOWN;    // 20
-            case AKEYCODE_DPAD_LEFT:  return eDPAD_LEFT;    // 21
-            case AKEYCODE_DPAD_RIGHT: return eDPAD_RIGHT;   // 22
+            case AKEYCODE_DPAD_UP:       return eDPAD_UP;    // 19
+            case AKEYCODE_DPAD_DOWN:     return eDPAD_DOWN;  // 20
+            case AKEYCODE_DPAD_LEFT:     return eDPAD_LEFT;  // 21
+            case AKEYCODE_DPAD_RIGHT:    return eDPAD_RIGHT; // 22
             //default: return 0;
         }
         return 0;
@@ -238,7 +277,7 @@ class Window_android : public WindowBase {
             //if((name.find("Nintendo")>-1) || (name.find("Switch")>-1))         {nintendo = true;}
             //if((name.find("Joy-Con")>-1)  || (name.find("Pro Controller")>-1)) {nintendo = true;}
             // SONY
-            pad.useDPad = !info.hasHatAxes;
+            //pad.useDPad = !info.hasHatAxes;
             return GPadConnect(i, true);
         }
         return {EventType::NONE};
@@ -275,7 +314,7 @@ class Window_android : public WindowBase {
             //printf("Gamepad %d: ", id);
             if (AKeyEvent_getRepeatCount(a_event) == 0) {  // ignore keyboard repeat events
                 auto& pad = gpads[id];
-                uint8_t btn = Gamepad_keymap(keycode, pad.useDPad);
+                uint8_t btn = Gamepad_keymap(keycode);
                 bool down = (AKeyEvent_getAction(a_event) == AKEY_EVENT_ACTION_DOWN);
                 return GPadButton(id, btn, down);
             }
@@ -455,7 +494,6 @@ class Window_android : public WindowBase {
             android_app_post_exec_cmd(app, cmd);
             return event;
         } else if (id == LOOPER_ID_INPUT) {
-            if(!app->inputQueue) printf("No QUEUE!\n");
             AInputEvent* a_event = NULL;
             while (AInputQueue_getEvent(app->inputQueue, &a_event) >= 0) {
                 //LOGV("Event: source=0x%4x type=%d\n", AInputEvent_getSource(a_event),AInputEvent_getType(a_event));
