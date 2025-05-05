@@ -703,8 +703,8 @@ void Window_xcb::MapGamepad(uint8_t id) {
     auto* p_layout = get_gamepad_layout(VID, PID, BUS, name);  // Find layout by gamepad ID
 
     if(p_layout) {  // Gamepad found. Decode layout tokens.
-        int8_t eBTN [] = {1,2,3,4,5,6,7,8,9,10,11,12,-3,-4,-5,-6,-1,-2,13,14};  // pos-to-eBTN
-        int8_t eAXIS[] = {0,0,0,0,0,0,0,0,0, 0, 0, 0, 3, 4, 5, 6, 1, 2, 0, 0};  // pos-to-eAxis
+        int8_t eBTN [] = {1,2,3,4,5,6,7,8,9,10,11,12,-1,-2,-3,-4,-5,-6,13,14};  // pos-to-eBTN
+        int8_t eAXIS[] = {0,0,0,0,0,0,0,0,0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 0, 0};  // pos-to-eAxis
         auto layout = *p_layout;
         for(int i=0; i<layout.size(); ++i) {
             uint8_t code = layout[i];
@@ -821,9 +821,8 @@ void Window_xcb::GamepadBtnEvent(uint8_t id, input_event event) {
     auto& ev = evdev[id];
     uint keycode = event.code;
     //printf("keycode=%d (0x%3x) %d\n", keycode, keycode, event.value);
-    if(event.value>1) return;  // ignore repeats
+    if(event.value>1) return;  // ignore repeats (0=up 1=down 2=repeat)
     for(auto& b : ev.map.b) if(keycode==b.BTN) {
-        if(event.value>1) return;
         if(b.eBTN>0) eventFIFO.push(GPadButton(id, b.eBTN, event.value));
         if(b.eBTN<0) eventFIFO.push(GPadAxis  (id,-b.eBTN, event.value));
     }

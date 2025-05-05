@@ -177,12 +177,12 @@ enum eGamepadBtn {
 
 enum eGamepadAxis {
     eAXIS_UNKNOWN,
-    eAXIS_TL,  // left trigger      0to1
-    eAXIS_TR,  // right trigger     0to1
-    eAXIS_LX,  // left thumbstick  -1to1 (right is positive)
-    eAXIS_LY,  // left thumbstick  -1to1 (up is positive)
-    eAXIS_RX,  // right thumbstick -1to1 (right is positive)
-    eAXIS_RY   // right thumbstick -1to1 (up is positive)
+    eAXIS_LX,  // 1: left thumbstick  -1to1 (right is positive)
+    eAXIS_LY,  // 2: left thumbstick  -1to1 (up is positive)
+    eAXIS_RX,  // 3: right thumbstick -1to1 (right is positive)
+    eAXIS_RY,  // 4: right thumbstick -1to1 (up is positive)
+    eAXIS_TL,  // 5: left trigger      0to1
+    eAXIS_TR,  // 6: right trigger     0to1
 };
 
 // clang-format on

@@ -1,13 +1,87 @@
+/*
+*--------------------------------------------------------------------------
+* Copyright (c) 2025 Rene Lindsay
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*
+* Author: Rene Lindsay <rjklindsay@hotmail.com>
+*
+*/
+
+//----------------------------------------------------------------------------------------------------
+//  The android_main() function is the entry-point for Android, and calls the user's main() function.
+//  But first, it initialises the asset manager, so that fopen can be used to read assets from the APK.
+//
+//  JClass is the base class for the JNI Wrappers.  (I only added functions I actually use.)
+//  It allows making Java system calls directly from C++, without having to write any Java.
+//  Class and Function names match their Java equivalents, except that classes start with a J.
+//----------------------------------------------------------------------------------------------------
+
+
 #ifndef JCLASS_H
 #define JCLASS_H
 
 #include <jni.h>
 #include <string>
 #include <vector>
-//#include <android/native_activity.h>
 #include <android_native_app_glue.h>
-#include "native.h"  // TODO: Move Android_App to here.
+#include "android_fopen.h"
 
+#define NATIVE_ACTIVITY
+
+//--------------------------------------Application Entry Point-------------------------------------
+android_app* Android_App = nullptr;  // Android native-activity state
+int main(int argc, char *argv[]);    // Forward declaration of main function
+
+#ifdef  NATIVE_ACTIVITY
+void android_main(struct android_app* state) {
+    Android_App = state;                                             // Pass android app state to window_android.cpp
+    android_fopen_set_asset_manager(state->activity->assetManager);  // Re-direct fopen to read assets from our APK.
+    main(0, nullptr);
+    ANativeActivity_finish(state->activity);
+}
+#endif
+//--------------------------------------------------------------------------------------------------
+//----------------------------------------printf for Android----------------------------------------
+// Uses a 256 byte buffer to allow concatenating multiple printf's onto one log line.
+// The buffer gets flushed when the printf string ends in a '\n', or the buffer is full.
+// Alternative with no concatenation:
+//   #define printf(...)  __android_log_print(ANDROID_LOG_INFO, LOG_TAG,__VA_ARGS__)
+
+struct printBuf {
+    static const int SIZE = 256;
+    char buf[SIZE];
+    printBuf() { clear(); }
+    printBuf(const char* c) {memset(buf, 0, SIZE); strncpy(buf, c, SIZE - 1);}
+    printBuf& operator+=(const char* c) {strncat(buf, c, SIZE - len() - 1); if(len() >= SIZE - 1) flush(); return *this;}
+    size_t len() {return strlen(buf);}
+    void clear(){ memset(buf, 0, SIZE); }
+    void flush() {__android_log_print(ANDROID_LOG_INFO, "Window", "%s", buf); clear();}
+}printBuf;
+
+int printf(const char* format, ...) {  // printf for Android
+    char buf[printBuf.SIZE];
+    va_list argptr;
+    va_start(argptr, format);
+    vsnprintf(buf, sizeof(buf), format, argptr);
+    va_end(argptr);
+    printBuf += buf;
+    size_t len = strlen(buf);
+    if ((len >= printBuf.SIZE - 1) || (buf[len - 1] == '\n')) printBuf.flush();  // flush on
+    return strlen(buf);
+}
+//--------------------------------------------------------------------------------------------------
+//----------------------------------JClass: JNI Wrappers--------------------------------------------
 class JClass {
     bool attached = false;
 public:
@@ -17,7 +91,8 @@ public:
     jclass  cls=0;
     jobject obj=0;
 
-    jobject object() const { return obj; }
+    operator jobject() {return obj;}
+
     JClass() { Init(Android_App->activity); }
 
     void Init(ANativeActivity* activity) {
@@ -40,13 +115,14 @@ public:
 
     jclass FindClass(const char* class_name) {  // using local ref
         cls = env->FindClass(class_name);
+        if(!cls) printf("ERROR: FindClass Failed to find class:%s\n", class_name);
         return cls;
     }
 
-    //jmethodID MethodID(const char* name, const char* sig) {
-    //    return env->GetMethodID(cls, name, sig);
-    //}
-
+    jclass GetObjectClass(jobject object) {
+        cls = env->GetObjectClass(object);
+        return cls;
+    }
 
     // ----------------- jstring to std::string -----------------
     std::string asString(jstring jStr) const {
@@ -69,6 +145,58 @@ public:
     }
     std::vector<int> asIntVector(jobject intArray) const {return asIntVector((jintArray)intArray);}
     //-----------------------------------------------------------
+
+    jmethodID Method(const char* name, const char* sig) {
+        return env->GetMethodID(cls, name, sig);
+    }
+
+    jmethodID StaticMethod(const char* name, const char* sig) {
+        return env->GetStaticMethodID(cls, name, sig);
+    }
+
+    template<typename... Args>
+    jobject CallStaticObj(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = StaticMethod(name, sig);
+        return env->CallStaticObjectMethod(cls, method, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    jobject CallObj(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = Method(name, sig);
+        return env->CallObjectMethod(obj, method, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    int CallInt(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = Method(name, sig);
+        return env->CallIntMethod(obj, method, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    float CallFloat(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = Method(name, sig);
+        return env->CallFloatMethod(obj, method, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    bool CallBool(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = Method(name, sig);
+        return env->CallBooleanMethod(obj, method, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    std::string CallStr(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = Method(name, sig);
+        return asString(env->CallObjectMethod(obj, method, std::forward<Args>(args)...));
+    }
+/*
+    template<typename... Args>
+    std::vector<int> CallIntVec(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = Method(name, sig);
+        return asIntVector(env->CallObjectMethod(obj, method, std::forward<Args>(args)...));
+    }
+*/
+
     /*
     //-------------- std::vector<int> to jintArray --------------  // not used
     jintArray asJintArray(std::vector<int> intvec) const {
@@ -92,7 +220,7 @@ public:
         std::vector<bool> result(length);
         jboolean* elements = env->GetBooleanArrayElements(array, nullptr);
         for (jsize i = 0; i < length; ++i) {
-            result[i] = elements[i] == JNI_TRUE;
+            result[i] = elements[i];
         }
         env->ReleaseBooleanArrayElements(array, elements, JNI_ABORT);
         return result;
@@ -104,97 +232,131 @@ public:
     bool asBool(jbooleanArray array) {
         jboolean result = JNI_FALSE;
         env->GetBooleanArrayRegion(array, 0, 1, &result);
-        return result == JNI_TRUE;
+        return result;
     }
     bool asBool(jobject boolArray) { return asBool((jbooleanArray)boolArray); }
     //-----------------------------------------------------------
-
 };
+
 //------------------------------------------------------------------------------
+
+class JActivity : public JClass {  // Context
+    jclass cls = GetObjectClass(activity_obj);
+    jfieldID  f_INPUT_SERVICE        = env->GetStaticFieldID(cls, "INPUT_SERVICE", "Ljava/lang/String;");
+    jfieldID  f_INPUT_METHOD_SERVICE = env->GetStaticFieldID(cls, "INPUT_METHOD_SERVICE", "Ljava/lang/String;");
+    jmethodID m_getSystemService = env->GetMethodID(cls, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+    jmethodID m_getWindow        = env->GetMethodID(cls, "getWindow", "()Landroid/view/Window;");
+public:
+    jstring INPUT_SERVICE()        { return (jstring)env->GetStaticObjectField(cls, f_INPUT_SERVICE); }
+    jstring INPUT_METHOD_SERVICE() { return (jstring)env->GetStaticObjectField(cls, f_INPUT_METHOD_SERVICE); }
+    jobject getSystemService(jstring jstr) { return env->CallObjectMethod(activity_obj, m_getSystemService, jstr); }
+    jobject getWindow()                    { return env->CallObjectMethod(activity_obj, m_getWindow); }
+};
 
 class JInputManager : public JClass {
     jclass cls = FindClass("android/hardware/input/InputManager");
-    jmethodID m_getInputDeviceIds = env->GetMethodID(cls, "getInputDeviceIds", "()[I");
 public:
-    JInputManager(jobject inputManagerObj) { obj = inputManagerObj; }
-    std::vector<int>  getInputDeviceIds() const { return asIntVector(env->CallObjectMethod(obj, m_getInputDeviceIds)); }
+    JInputManager() { JActivity a; obj = a.getSystemService(a.INPUT_SERVICE()); }
+    std::vector<int> getInputDeviceIds() { return asIntVector(CallObj("getInputDeviceIds", "()[I")); }
+    //std::vector<int> getInputDeviceIds() { return CallIntVec("getInputDeviceIds", "()[I"); }
+};
+//------------------------------------------------------------------------------
+// for ShowKeyboard
+class JInputMethodManager : public JClass {
+    jclass cls = FindClass("android/view/inputmethod/InputMethodManager");
+public:
+    JInputMethodManager() { JActivity a; obj = a.getSystemService(a.INPUT_METHOD_SERVICE()); }
+    jboolean showSoftInput(jobject decorView, int flags)         { return CallBool("showSoftInput", "(Landroid/view/View;I)Z", decorView, flags); }
+    jboolean hideSoftInputFromWindow(jobject iBinder, int flags) { return CallBool("hideSoftInputFromWindow", "(Landroid/os/IBinder;I)Z", iBinder, flags); }
 };
 
-class JContext : public JClass {
-    jclass cls = FindClass("android/content/Context");
-    jfieldID  m_INPUT_SERVICE    = env->GetStaticFieldID(cls, "INPUT_SERVICE", "Ljava/lang/String;");
-    jmethodID m_getSystemService = env->GetMethodID(cls, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+class JView : public JClass {
+    jclass cls = FindClass("android/view/View");
 public:
-    jstring INPUT_SERVICE() const { return (jstring)env->GetStaticObjectField(cls, m_INPUT_SERVICE); }
-    JInputManager getSystemService(jstring jstr) const { return {env->CallObjectMethod(activity_obj, m_getSystemService, jstr)}; }
+    JView(jobject viewobj) { obj = viewobj; }
+    jobject getWindowToken() { return CallObj("getWindowToken", "()Landroid/os/IBinder;"); }
+};
+
+class JWindow : public JClass {
+    jclass cls = FindClass("android/view/Window");
+public:
+    JWindow() {JActivity a; obj = a.getWindow();}
+    JView getDecorView() { return JView(CallObj("getDecorView", "()Landroid/view/View;")); }
 };
 
 //------------------------------------------------------------------------------
+// for GetUnicodeChar
+class JKeyEvent : public JClass {
+    jclass cls = FindClass("android/view/KeyEvent");
+    jmethodID constructor = Method("<init>", "(II)V");
+public:
+    JKeyEvent(int eventType, int keyCode) {
+        obj = env->NewObject(cls, constructor, eventType, keyCode);
+    }
+    int getUnicodeChar(int metaState) {return CallInt("getUnicodeChar", "(I)I", metaState);}
+};
 
+static std::string UnicodeToUTF8(int unicode) {
+    std::string utf8;
+    if (unicode < 0x80) { // 1-byte ASCII (0xxxxxxx)
+        utf8 += static_cast<char>(unicode);
+    }
+    else if (unicode < 0x800) { // 2-byte sequence (110xxxxx 10xxxxxx)
+        utf8 += static_cast<char>(0xC0 | (unicode >> 6));
+        utf8 += static_cast<char>(0x80 | (unicode & 0x3F));
+    }
+    else if (unicode < 0x10000) { // 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+        utf8 += static_cast<char>(0xE0 | (unicode >> 12));
+        utf8 += static_cast<char>(0x80 | ((unicode >> 6) & 0x3F));
+        utf8 += static_cast<char>(0x80 | (unicode & 0x3F));
+    }
+    else if (unicode < 0x110000) { // 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+        utf8 += static_cast<char>(0xF0 | (unicode >> 18));
+        utf8 += static_cast<char>(0x80 | ((unicode >> 12) & 0x3F));
+        utf8 += static_cast<char>(0x80 | ((unicode >> 6) & 0x3F));
+        utf8 += static_cast<char>(0x80 | (unicode & 0x3F));
+    }
+    return utf8;
+}
+
+//------------------------------------------------------------------------------
+// Gamepad layout info
 class JMotionRange : public JClass {
     jclass cls = FindClass("android/view/InputDevice$MotionRange");
-    jmethodID m_getAxis      = env->GetMethodID(cls, "getAxis", "()I");
-    jmethodID m_getSource    = env->GetMethodID(cls, "getSource", "()I");
-    jmethodID m_getMin       = env->GetMethodID(cls, "getMin", "()F");
-    jmethodID m_getMax       = env->GetMethodID(cls, "getMax", "()F");
-    jmethodID m_getRange     = env->GetMethodID(cls, "getRange", "()F");
-    jmethodID m_getFlat      = env->GetMethodID(cls, "getFlat", "()F");
-    jmethodID m_getFuzz      = env->GetMethodID(cls, "getFuzz", "()F");
-    jmethodID m_getResolution= env->GetMethodID(cls, "getResolution", "()F");
 public:
     JMotionRange(jobject motionRangeObj) { obj = motionRangeObj; }
-    int getAxis()        const { return env->CallIntMethod(obj, m_getAxis); }
-    int getSource()      const { return env->CallIntMethod(obj, m_getSource); }
-    float getMin()       const { return env->CallFloatMethod(obj, m_getMin); }
-    float getMax()       const { return env->CallFloatMethod(obj, m_getMax); }
-    float getRange()     const { return env->CallFloatMethod(obj, m_getRange); }
-    float getFlat()      const { return env->CallFloatMethod(obj, m_getFlat); }
-    float getFuzz()      const { return env->CallFloatMethod(obj, m_getFuzz); }
-    float getResolution()const { return env->CallFloatMethod(obj, m_getResolution); }
+    int getAxis()        { return CallInt("getAxis", "()I"); }
+    int getSource()      { return CallInt("getSource", "()I"); }
+    float getMin()       { return CallFloat("getMin", "()F"); }
+    float getMax()       { return CallFloat("getMax", "()F"); }
+    float getRange()     { return CallFloat("getRange", "()F"); }
+    float getFlat()      { return CallFloat("getFlat", "()F"); }
+    float getFuzz()      { return CallFloat("getFuzz", "()F"); }
+    float getResolution(){ return CallFloat("getResolution", "()F"); }
 };
 
 template<typename T>
 class JList : public JClass {
-    jclass  cls = FindClass("java/util/List");
-    jmethodID m_size = env->GetMethodID(cls, "size", "()I");
-    jmethodID m_get  = env->GetMethodID(cls, "get", "(I)Ljava/lang/Object;");
+    jclass cls = FindClass("java/util/List");
 public:
     JList(jobject listObj) { obj = listObj; }
-    jint size() { return env->CallIntMethod(obj, m_size); }
-    T get(int i)  { {return env->CallObjectMethod(obj, m_get, i);} }
-
-    //std::vector<T> asVector() {  // convert to std::vector<>
-    //    std::vector<T> items;
-    //    for(int i=0; i<size(); ++i) {items.emplace_back(get(i));}
-    //    return items;
-    //}
+    jint size() { return CallInt("size", "()I"); }
+    T get(int i){ {return CallObj("get", "(I)Ljava/lang/Object;", i);} }
 };
 
 class JInputDevice : public JClass {
-    jclass  cls = FindClass("android/view/InputDevice");
-    jmethodID m_getDevice      = env->GetStaticMethodID(cls, "getDevice", "(I)Landroid/view/InputDevice;");
-    jmethodID m_getName        = env->GetMethodID(cls, "getName", "()Ljava/lang/String;");
-    jmethodID m_getVendorId    = env->GetMethodID(cls, "getVendorId", "()I");
-    jmethodID m_getProductId   = env->GetMethodID(cls, "getProductId", "()I");
-  //jmethodID m_getSources     = env->GetMethodID(cls, "getSources", "()I");
-  //jmethodID m_getKeyboardType= env->GetMethodID(cls, "getKeyboardType", "()I");
-    jmethodID m_getMotionRange = env->GetMethodID(cls, "getMotionRange", "(I)Landroid/view/InputDevice$MotionRange;");
-    jmethodID m_getMotionRanges= env->GetMethodID(cls, "getMotionRanges", "()Ljava/util/List;");
-    jmethodID m_hasKeys        = env->GetMethodID(cls, "hasKeys", "([I)[Z");
+    jclass cls = FindClass("android/view/InputDevice");
 public:
-    JInputDevice(int deviceId) { obj = env->CallStaticObjectMethod(cls, m_getDevice, deviceId); }
-
-    std::string getName()                     { return asString(env->CallObjectMethod(obj, m_getName)); }
-    int getVendorId()                         { return env->CallIntMethod(obj, m_getVendorId); }
-    int getProductId()                        { return env->CallIntMethod(obj, m_getProductId); }
-  //int getSources()                          { return env->CallIntMethod(obj, m_getSources); }
-  //int getKeyboardType()                     { return env->CallIntMethod(obj, m_getKeyboardType); }
-    JMotionRange getMotionRange(int axis)     { return {env->CallObjectMethod(obj, m_getMotionRange, axis)}; }
-    JList<JMotionRange> getMotionRanges()     { return {env->CallObjectMethod(obj, m_getMotionRanges)}; }
-    //jobject hasKeys(jintArray keyCodes)       { return env->CallObjectMethod(obj, m_hasKeys, keyCodes);}
-    //jbooleanArray hasKeys(std::vector<int> keyCodes){ return (jbooleanArray)env->CallObjectMethod(obj, m_hasKeys, asJintArray(keyCodes));}
-    //std::vector<bool> hasKeys(std::vector<int> keyCodes){ return asBoolVector(env->CallObjectMethod(obj, m_hasKeys, asJintArray(keyCodes)));}
-    bool hasKey(int keyCode) {return asBool(env->CallObjectMethod(obj, m_hasKeys, asJintArray(keyCode)));}
+    JInputDevice(int deviceId) { obj = CallStaticObj("getDevice", "(I)Landroid/view/InputDevice;", deviceId); }
+    std::string getName()                 { return CallStr("getName", "()Ljava/lang/String;"); }
+    int getVendorId()                     { return CallInt("getVendorId", "()I"); }
+    int getProductId()                    { return CallInt("getProductId", "()I"); }
+    std::string getDescriptor()           { return CallStr("getDescriptor", "()Ljava/lang/String;"); }
+    JMotionRange getMotionRange(int axis) { return {CallObj("getMotionRange", "(I)Landroid/view/InputDevice$MotionRange;", axis)}; }
+    JList<JMotionRange> getMotionRanges() { return {CallObj("getMotionRanges", "()Ljava/util/List;")}; }
+    bool hasKey(int keyCode)              { return asBool(CallObj("hasKeys", "([I)[Z", asJintArray(keyCode)));}
 };
+
+//------------------------------------------------------------------------------
 
 #endif

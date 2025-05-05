@@ -35,7 +35,7 @@
     #ifndef VK_USE_PLATFORM_ANDROID_KHR
     #define VK_USE_PLATFORM_ANDROID_KHR
     #endif
-    #include <native.h>
+    //#include <native.h>
     #define cTICK "\u2713"
     #define PAUSE
 #elif __LINUX__
