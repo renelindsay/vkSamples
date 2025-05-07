@@ -76,6 +76,7 @@ def parse_controller_line(line: str) -> Optional[GameControllerMapping]:
 
 def read_gamecontrollerdb(file_path: str, platform: str):
     mappings = []
+    seen_ids = set()
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
             controller = parse_controller_line(line)
@@ -92,9 +93,20 @@ def read_gamecontrollerdb(file_path: str, platform: str):
                     string = bytes.fromhex(controller.GUID).split(b'\x00')[0].decode('ascii')
                     #print(f"{controller.GUID}: {str:<16}: {controller.Name}")
                     controller.STR = string
-                else: continue
+                else:
+                    #Controllers using getDescriptor based GUID:
+                    #string = bytes.fromhex(controller.GUID).decode('ascii')
+                    #print(f"{controller.GUID} {string} {controller.Name}")
+                    continue
 
+            # Eliminate duplicate gamepads, even with different layout
+            c=controller
+            key = (c.VID, c.PID, c.BUS, c.STR)
+            if key in seen_ids:
+                #print(f"DUPLICATE: {c.VID}, {c.PID}, {c.BUS}, {c.STR}")
+                continue
 
+            seen_ids.add(key)
             mappings.append(controller)
     return mappings
 
@@ -115,6 +127,22 @@ def get_unique_layouts(controllers, top_n=20):
         key=lambda x: x[1], reverse=True
     )
 
+    '''
+    # Detect duplicates (same VID:PID:BUS:STR, different layout)
+    seen_controllers = {}
+    id = 0;
+    for layout, controllers_with_layout in layout_occurrences.items():
+        for c in controllers_with_layout:
+            key = (c.VID, c.PID, c.BUS, c.STR)
+            if key in seen_controllers:
+                previous_layout = seen_controllers[key]
+                if previous_layout != layout:
+                    print(f"Duplicates: {id}: {c.Name} ({c.VID}:{c.PID}:{c.BUS} \"{c.STR}\")")
+            else:
+                seen_controllers[key] = layout
+        id=id+1
+    '''
+
     # Build top layouts with extra 'back' and 'start' info
     top_layouts = []
     for layout, count in all_layout_counts[:top_n]:
@@ -127,31 +155,24 @@ def get_unique_layouts(controllers, top_n=20):
         sample_controller = matching_controllers[0]
         back =  sample_controller.Mappings.get('back')
         start = sample_controller.Mappings.get('start')
-        #label = sample_controller.Name
         extended_layout = layout + (back, start)
 
-        # eliminate items with the same vid:pid:bus, but keep one name
+        # eliminate items with the same vid:pid:bus or str
         vidpid_dict = {}
         for c in matching_controllers:
             key = (c.VID, c.PID, c.BUS, c.STR)
             if key not in vidpid_dict:
+                 #print(f"{c.VID}, {c.PID}, {c.BUS}, {c.STR}")
                  vidpid_dict[key] = c.Name
         vidpid_list = sorted((vid, pid, bus, string, name) for (vid, pid, bus, string), name in vidpid_dict.items())
 
-        # vidpid_list = sorted((c.VID, c.PID, c.BUS, c.Name) for c in matching_controllers)
-        #vidpid_list = sorted({(c.VID, c.PID, c.BUS, c.Name) for c in matching_controllers})  # eliminates duplicates
+        #vidpid_list = sorted((c.VID, c.PID, c.BUS, c.STR, c.Name) for c in matching_controllers)
+        #vidpid_list = sorted({(c.VID, c.PID, c.BUS, c.STR, c.Name) for c in matching_controllers}) # eliminates duplicates
 
         cnt = len(vidpid_list)
-        label = group_name(layout, vidpid_list)
-        top_layouts.append((extended_layout, cnt, label, vidpid_list))
+        top_layouts.append((extended_layout, cnt, vidpid_list))
 
     return top_layouts
-
-def group_name(layout, vidpid_list):
-    #for vid, pid, bus, name in vidpid_list:
-    #    if "Xbox 360 Controller" in name: return "XBox compatible";
-    vid, pid, bus, name, string = vidpid_list[0]
-    return name
 
 
 def find_layouts_by_vidpid(controllers, vid_hex, pid_hex):
@@ -173,7 +194,7 @@ def find_layouts_by_vidpid(controllers, vid_hex, pid_hex):
 def find_layout_id_by_vidpid(vid_hex, pid_hex):
     vid_val = int(vid_hex, 16)
     pid_val = int(pid_hex, 16)
-    for i, (layout, count, label, vidpid_list) in enumerate(top_layouts, 0):
+    for i, (layout, count, vidpid_list) in enumerate(top_layouts, 0):
         for j, (vid, pid, bus, string, name) in enumerate(vidpid_list, 0):
             if vid == vid_val and pid == pid_val :
                 #print(f"{name}:{i}")
@@ -181,7 +202,7 @@ def find_layout_id_by_vidpid(vid_hex, pid_hex):
     return None
 
 def remap_android_buttons(top_layouts):
-    for i, (layout, count, label, vidpid_list) in enumerate(top_layouts, 1):
+    for i, (layout, count, vidpid_list) in enumerate(top_layouts, 1):
         layout = list(layout)  # convert tuple to list, so we can modify it
         for key in DISPLAY_KEYS:
             #print(f"  {key:13} -> {layout[DISPLAY_KEYS.index(key)]}")
@@ -194,15 +215,14 @@ def remap_android_buttons(top_layouts):
             bname2 = f"b{android_index}"
             layout[inx] = bname2
             #print(f"{bname}->{bname2}")
-        top_layouts[i-1] = (tuple(layout), count, label, vidpid_list) # save modified layout
+        top_layouts[i-1] = (tuple(layout), count, vidpid_list) # save modified layout
 
 
 def print_detail(top_layouts):
     print(f"\nTop {len(top_layouts)} unique button layouts:")
-    for i, (layout, count, label, vidpid_list) in enumerate(top_layouts, 1):
+    for i, (layout, count, vidpid_list) in enumerate(top_layouts, 1):
     #for i, (layout, count, vidpid_list) in enumerate(top_layouts, 1):
         print(f"\nLayout #{i} (Used by {count} controllers):")
-        #print(f"Example controller: {label}")
 
         for key in DISPLAY_KEYS:
             print(f"  {key:13} -> {layout[DISPLAY_KEYS.index(key)]}")
@@ -227,8 +247,9 @@ def write_header_top():
     with open("gamepads.h", "w") as f:
         print("// Gamepad button layout lookup table for Linux and Android.",file=f)
         print("// This file was generated by gamepads.py,", file=f)
-        print("// using data derived from gamecontrollerdb.txt", file=f)
-        print("// (Controllers with missing buttons were discarded.)", file=f)
+        print("// using data derived from 'gamecontrollerdb.txt'.", file=f)
+        print("// - Duplicates and problematic items were discarded.", file=f)
+        print("// - Controllers with missing buttons were discarded.", file=f)
         print("", file=f)
         print("#if defined(__linux__) && !defined(__ANDROID__)", file=f)
         print("#define LINUX", file=f)
@@ -247,7 +268,7 @@ def write_header_mid(top_layouts, platform=None):
         print("constexpr std::array gamepad_layout_list = {",file=f)
         print("//   A   B   X   Y   LB  RB  LS  RS  UP  DN  LE  RI  THUMBL  THUMBR  TRIGER  SEL START",file=f)
 
-        for i, (layout, count, label, vidpid_list) in enumerate(top_layouts, 0):
+        for i, (layout, count, vidpid_list) in enumerate(top_layouts, 0):
             print(f'    "', end="",file=f)
             for key in DISPLAY_KEYS:
                 val = layout[DISPLAY_KEYS.index(key)]
@@ -261,7 +282,6 @@ def write_header_mid(top_layouts, platform=None):
                 if val == 'h0': val = 'h'
                 print(f"{val:<3}", end=" ",file=f)
             print(f'",  // {i}',file=f)
-            #print(f'",  // {i}    {label}',file=f)
         print("};",file=f)
 
         # List gamepad vid:pid:inx
@@ -273,10 +293,10 @@ def write_header_mid(top_layouts, platform=None):
         print("    uint8_t  inx;     // Layout index",file=f)
         print("} gamepad_index[] = {",file=f)
 
-        for i, (layout, count, label, vidpid_list) in enumerate(top_layouts, 0):
+        for i, (layout, count, vidpid_list) in enumerate(top_layouts, 0):
             for j,(vid, pid, bus, string, name) in enumerate(vidpid_list, 0):
                 if bus == 0: continue
-                bus_str = {3: "USB", 5: "BT ", 6: "VRT"}.get(bus, "   ")
+                bus_str = {3:"USB", 5:"BT ", 6:"VRT"}.get(bus, "   ")
                 print(f"    {{0x{vid:04x},0x{pid:04x},{bus},{i:2d}}},  // {bus_str}: {name}", file=f)
         print("};",file=f)
         print(file=f)
@@ -289,13 +309,20 @@ def write_header_mid(top_layouts, platform=None):
         print("    uint8_t  inx;        // Layout index",file=f)
         print("} gamepad_by_name[] = {",file=f)
         print(f'    {{"Lic Pro Controll", {SwitchPro}}},  // Lic Pro Controller',file=f)
-        for i, (layout, count, label, vidpid_list) in enumerate(top_layouts, 0):
+        print(f'    {{"Nintendo Wireles", {SwitchPro}}},  // Nintendo Wireless Gamepad', file=f)
+        print(f'    {{"Wireless Gamepad", {SwitchPro}}},  // Wireless Gamepad', file=f)
+
+        for i, (layout, count, vidpid_list) in enumerate(top_layouts, 0):
             for j,(vid, pid, bus, string, name) in enumerate(vidpid_list, 0):
                 if bus == 0 and len(string)>0:
                     string = string[:16]
                     padding = " " * (16-len(string))
                     print(f'    {{"{string}", {padding}{i:2d}}},  // {name}',file=f)
         print("};",file=f)
+
+        #if platform == "__ANDROID__":  # TODO: Find by descriptor guid
+        #    print("", file=f)
+
         if platform: print(f"#endif", file=f)
         print(file=f)
 

@@ -16,7 +16,7 @@
 
 #ifdef ENABLE_GAMEPAD
 #include "gamepads.h"
-//#include <algorithm>
+#include <algorithm>
 #endif
 
 #undef  repeat
@@ -80,13 +80,12 @@ struct GamepadInfo {
     std::string desc;
 
     struct Axis {
-        uint8_t axis;  // AMOTION_EVENT_AXIS_X
-        float   min;   // 0 for trigger, -1 for thumbstick
-        float   max;
-        float   range;
-        float   flat;
-        float   fuzz;
-        float   res;
+        int8_t axis;  // AMOTION_EVENT_AXIS_X
+        float  min;   // 0 for trigger, -1 for thumbstick
+        float  max;
+        float  range;
+        float  flat;
+        float  fuzz;
     };
     std::vector<Axis> axes;     // Axis list and properties
     std::vector<int16_t> btns;  // KEYCODE_BUTTON_A
@@ -119,8 +118,7 @@ static GamepadInfo GetGamepadInfo(int deviceId) {
         a.range= item.getRange();
         a.flat = item.getFlat();
         a.fuzz = item.getFuzz();
-        a.res  = item.getResolution();
-        //printf("inx=%d Axis=%2d Min=% f Max=% f Range=%f Flat=%f Fuzz=%f Res=%f\n", inx, a.axis, a.min, a.max, a.range, a.flat, a.flat, a.res);
+        //printf("inx=%d Axis=%2d Min=% f Max=% f Range=%f Flat=%f Fuzz=%f\n", inx, a.axis, a.min, a.max, a.range, a.flat, a.flat);
     }
 
     return info;
@@ -135,25 +133,26 @@ class Window_android : public WindowBase {
     //---- Gamepad ----
 #ifdef ENABLE_GAMEPAD
 #define MAX_BTNS 19
-#define MAX_AXIS 8
+#define MAX_AXIS 9
     struct GPadSlots {
         int32_t deviceID=0;
         char name[256] = {};
 
-        struct Btns{
-            uint16_t BTN;     // AKEYCODE event code
-            int8_t  eBTN;     // eGamepadBtn
+        struct Btns {
+            uint16_t BTN=0;   // AKEYCODE event code
+            int8_t  eBTN=0;   // eGamepadBtn
         }b[MAX_BTNS]={};      // buttons
-        int8_t eBtn(uint16_t BTN) { for(auto& i:b) if(i.BTN==BTN) return i.eBTN; return 0; }  //BTN to eBTN
+        int8_t eBtn(uint16_t BTN) { for(auto& i:b) if(i.BTN==BTN) return i.eBTN; return eBTN_UNKNOWN; }  //BTN to eBTN
 
-        struct Axes{
-            uint8_t  AXIS;    // AMOTION event code
-            int8_t  eAXIS;    // eGamepadAxis
-            bool flip=false;  // Flip this axis
-        }a[MAX_AXIS]={};      // axes
-        int8_t eAxis(uint8_t AXIS) { for(auto& i:a) if(i.AXIS==AXIS) return i.eAXIS; return 0; }  // AXIS to eAxis
-        int8_t Axis(uint8_t eAXIS) { for(auto& i:a) if(i.eAXIS==eAXIS) return i.AXIS; return -1; } // eAxis to Axis
-
+        struct eAxes {
+            int8_t axis =-1;      // AMOTION_EVENT_AXIS_X
+            float  min  = 0;      // 0 for trigger, -1 for thumbstick
+            float  max  = 0;      // 1
+            float  flat = 0;      // deadzone
+            float  fuzz = 0;      // jitter
+            bool   flip = false;  // flip the axis
+            float  prev = 0;      // previous value
+        }a[MAX_AXIS]={};
 
     }gpads[MAX_GAMEPADS];
 #endif
@@ -212,22 +211,20 @@ class Window_android : public WindowBase {
 
     //-------------------- GAMEPAD ---------------------
     int8_t FindGamepad(AInputEvent* a_event) {  // returns gamepad slot id or -1 if failed
-        uint32_t deviceID = AInputEvent_getDeviceId(a_event);
-        repeat(MAX_GAMEPADS) if (gpads[i].deviceID == deviceID) return i;  // find gamepad by deviceId
-        //eventFIFO.push(ConnectGamepad(a_event));                           // if not found, connect
-        //repeat(MAX_GAMEPADS) if (gpads[i].deviceID == deviceID) return i;  // try again
-        return -1;
+        uint32_t deviceID = AInputEvent_getDeviceId(a_event);  // get deviceID from event
+        return ConnectGamepad(deviceID);                       // (connect) and return slot
     }
 
-    EventType ConnectGamepad(AInputEvent* a_event) {  // tries to connect to gamepad
-        uint32_t deviceID = AInputEvent_getDeviceId(a_event);
+    int ConnectGamepad(uint32_t deviceID) {  // try to connect to gamepad
+        repeat(MAX_GAMEPADS) if (gpads[i].deviceID == deviceID) return i;  // if already connected return slot
         repeat(MAX_GAMEPADS) if (gpads[i].deviceID == 0) {
-            auto& pad = gpads[i];
-            pad.deviceID = deviceID;
-            MapGamepad(i);
-            return GPadConnect(i, true);
-        }
-        return {EventType::NONE};
+                auto& pad = gpads[i];
+                pad.deviceID = deviceID;
+                MapGamepad(i);
+                eventFIFO.push(GPadConnect(i, true));
+                return i;
+            }
+        return -1;
     }
 
     void MapGamepad(int8_t slot) {
@@ -236,9 +233,7 @@ class Window_android : public WindowBase {
         strncpy(pad.name, info.name.c_str(), sizeof(pad.name)-1);
         printf("Gamepad %d found: %s (VID:%x PID:%x)\n", slot, pad.name, info.VID, info.PID);
         //printf("Descriptor GUID: %s\n", info.desc.c_str());
-
         for(int i=0; i<info.btns.size(); ++i) pad.b[i].BTN  = info.btns[i];        // list AKEYCODE event codes
-        for(int i=0; i<info.axes.size(); ++i) pad.a[i].AXIS = info.axes[i].axis;   // list AMOTION event codes
 
         //                A  B  X  Y SL SR TL TR UP DN LE RI THUML THUMR TRIGR SE ST
         int8_t eBTN [] = {1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,-1,-2,-3,-4,-5,-6,13,14};  // pos-to-eBTN
@@ -258,12 +253,15 @@ class Window_android : public WindowBase {
                 bool isBtn  =!(code&0x60);                       // No flag for button
                 bool isHat  = code &0x40;                        // extract hat flag
                 bool isAxis = code &0x20;                        // extract axis flag
-                if(isBtn)  pad.b[num].eBTN  = eBTN[i];           // button event code to eGamepadBtn map
-                if(isAxis) pad.a[num].eAXIS = eAXIS[i];          // axis event code to eGamepadAxis map
-                if(isAxis) pad.a[num].flip  = flip;              // flip axis
-              //printf("i=%d num=%d isBtn=%d isHat=%d isAxis=%d filp=%d\n",i ,num, isBtn, isHat, isAxis, flip);
+                if(isBtn) pad.b[num].eBTN = eBTN[i];             // button event code to eGamepadBtn map
+                if(isAxis && eAXIS[i]) {
+                    auto& ia = info.axes[num];
+                    pad.a[eAXIS[i]] = {ia.axis, ia.min, ia.max, ia.flat, ia.fuzz, flip};
+                }
+                //printf("i=%d num=%d isBtn=%d isHat=%d isAxis=%d filp=%d\n",i ,num, isBtn, isHat, isAxis, flip);
             }
-        } else {  // Gamepad not found.  Use heuristics.
+        }
+        if(!p_layout) {  // Gamepad not found.  Use heuristics.
             // Buttons: apply default layout
             // Button        A   B   C   X   Y   Z  L1  R1  L2  R2 THL THR STA SEL MOD  UP  DN  LE  RI
             // layout b#     0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18
@@ -272,53 +270,74 @@ class Window_android : public WindowBase {
             for(int i=0; i<sizeof(MAP); ++i) pad.b[i] = {BTN[i], MAP[i]};  // apply default layout
 
             //Axis: Identify axis role, based on its min and flat values.
-            auto& a = pad.a;
-            auto& t = info.axes[0];  // thumb_Left_X
+            auto assign = [&](GPadSlots::eAxes& e, GamepadInfo::Axis& i, bool flip=false) {
+                e = {i.axis, i.min, i.max, i.flat, i.fuzz, flip};
+                i.axis = -1;  //mark assigned
+            };
 
-            auto assignFirst = [&](uint8_t eAxis, auto cond) {
-                int axis_count = MIN(info.axes.size(), MAX_AXIS);  // Number of axes found
-                for(int i = 0; i < axis_count; ++i) {              // for each axis
-                    if(a[i].eAXIS) continue;                       // skip if already assigned
-                    auto &ia = info.axes[i];                       // get current axis info
-                    if(cond(ia)) {a[i].eAXIS=eAxis; return;}       // assign if conditions met.
+            auto assignFirst = [&](uint8_t eAxis, auto fn) {
+                int axis_count = MIN(info.axes.size(), MAX_AXIS);     // Number of axes found
+                for(int i = 0; i < axis_count; ++i) {                 // for each axis
+                    auto& ia=info.axes[i];                            // get axis info
+                    if(ia.axis<0) continue;                           // skip if already assigned
+                    if(fn(ia)) { assign(pad.a[eAxis], ia); return; }  // assign if conditions met
                 }
             };
 
-            a[0].eAXIS = eAXIS_LX;  // Axis 0 is always left_thumb_X
-            a[1].eAXIS = eAXIS_LY;  // Axis 1 is always left_thumb_Y
-            assignFirst (eAXIS_RX, [&](auto& ia){ return ia.min==t.min && ia.flat==t.flat; });  // is thumb
-            assignFirst (eAXIS_RY, [&](auto& ia){ return ia.min==t.min && ia.flat==t.flat; });  // is thumb
+            auto& t = info.axes[0];  // thumb_Left_X
+            assign(pad.a[eAXIS_LX], info.axes[0]);  // Assume axis 0 is left_thumb_X
+            assign(pad.a[eAXIS_LY], info.axes[1]);  // Assume axis 1 is left_thumb_Y
+            assignFirst (eAXIS_RX, [&](auto& ia){ return ia.min==t.min && ia.flat==t.flat; });  // is right thumb
+            assignFirst (eAXIS_RY, [&](auto& ia){ return ia.min==t.min && ia.flat==t.flat; });  // is right thumb
             assignFirst (eAXIS_TL, [&](auto& ia){ return ia.min==0 && ia.flat>0.f; });          // is trigger
             assignFirst (eAXIS_TR, [&](auto& ia){ return ia.min==0 && ia.flat>0.f; });          // is trigger
             assignFirst (7       , [&](auto& ia){ return ia.axis==15 || ia.flat==0.f; });       // is hat
-            assignFirst (8        ,[&](auto& ia){ return ia.axis==16 || ia.flat==0.f; });       // is hat
+            assignFirst (8       , [&](auto& ia){ return ia.axis==16 || ia.flat==0.f; });       // is hat
         }
+
+        auto& LY=pad.a[eAXIS_LY];  LY.flip=!LY.flip;  // up is positive
+        auto& RY=pad.a[eAXIS_RY];  RY.flip=!RY.flip;  // up is positive
+
         //printf("BTNS:\n"); for(int i=0; i<MAX_BTNS; ++i) printf("%d: %d->%d\n", i, pad.b[i].BTN, pad.b[i].eBTN);
-        //printf("AXIS:\n"); for(int i=0; i<MAX_AXIS; ++i) printf("%d: %d->%d\n", i, pad.a[i].AXIS, pad.a[i].eAXIS);
+        printf("eAXIS:\n"); for(int i=0; i<MAX_AXIS; ++i) printf("i=%d: axis=%2d min=% f max=% f flat=%f fuzz=%f flip=%d\n", i, pad.a[i].axis, pad.a[i].min, pad.a[i].max, pad.a[i].flat, pad.a[i].fuzz, pad.a[i].flip );
     }
 
-    void MonitorGamepads() {  // poll for gamepad disconnect
-        // run only once per second
+    void MonitorGamepads() {  // poll for gamepad connect/disconnect
+        // Run no more than once per second
         static clock_t last_time = clock();
         clock_t curr_time = clock();
         if (curr_time - last_time < CLOCKS_PER_SEC) return;
         last_time = curr_time;
 
+        // Check if device list changed
         auto list = AInputQueue_getDeviceIds();
+        static std::vector<int> prev_list;
+        if (list == prev_list) return;  // exit if nothing changed
+        prev_list = list;
         //for(int item : list) printf("%d ", item); printf("\n");
+
+        // Check for disconnects
         for(int i=0; i<MAX_GAMEPADS; ++i) {
             int32_t id = gpads[i].deviceID;
             if(id) if (std::find(list.begin(), list.end(), id) == list.end()) {
-                memset(&gpads[i], 0, sizeof(gpads));  // clear gamepad slot
+                gpads[i] = GPadSlots{};  // clear gamepad slot
                 eventFIFO.push(GPadConnect(i,false));
             }
+        }
+        // Check for new connects
+        for(auto item:list) {
+              JInputDevice device(item);
+              int sources = device.getSources();
+              bool isGamepad = ((sources & AINPUT_SOURCE_GAMEPAD) == AINPUT_SOURCE_GAMEPAD) &&
+                               ((sources & AINPUT_SOURCE_JOYSTICK) == AINPUT_SOURCE_JOYSTICK);
+              if(isGamepad) ConnectGamepad(item);
         }
     }
 
     EventType GetGPadButtonEvent(AInputEvent* a_event) {
         //ASSERT(AInputEvent_getType(a_event)==AINPUT_EVENT_TYPE_KEY, "Not a key press event.");
         int8_t id = FindGamepad(a_event);            // Get gamepad ID for this event
-        if(id==-1) return ConnectGamepad(a_event);   // If gamepad not found, connect
+        if(id==-1) return {};
 
         int32_t keycode  = AKeyEvent_getKeyCode(a_event);
         if (AKeyEvent_getRepeatCount(a_event) > 0) return {};  // ignore keyboard repeat events
@@ -326,28 +345,55 @@ class Window_android : public WindowBase {
             bool down = (AKeyEvent_getAction(a_event) == AKEY_EVENT_ACTION_DOWN);  // btn is pressed
             //printf("keycode:%d (0x%02x) %d\n",keycode,keycode, down);
             auto& pad = gpads[id];
-            int8_t eBTN = pad.eBtn(keycode);               // keycode to eBTN
-            if(eBTN>0) return GPadButton(id, eBTN, down);  // is button:  eBTN event
-            if(eBTN<0) return GPadAxis  (id,-eBTN, down);  // is trigger: aAXIS event
+            int8_t eBTN = pad.eBtn(keycode);                        // keycode to eBTN
+            if(eBTN>0) eventFIFO.push(GPadButton(id, eBTN, down));  // is button:  eBTN event
+            if(eBTN<0) eventFIFO.push(GPadAxis  (id,-eBTN, down));  // is trigger: aAXIS event
         }
+        if(!eventFIFO.isEmpty()) return *eventFIFO.pop();
         return {};
     }
 
     EventType GetGPadAxisEvent(AInputEvent* a_event) {
         //ASSERT(AInputEvent_getType(a_event)==AINPUT_EVENT_TYPE_MOTION, "Not a motion event.");
         int8_t id = FindGamepad(a_event);            // Get gamepad ID for this event
-        if(id==-1) return ConnectGamepad(a_event);   // If not found, connect
-        Gamepad& pad = gamepad[id];
+        if(id==-1) return {};
         GPadSlots& gpad = gpads[id];
 
-        auto axisEvent = [&](eGamepadAxis eAxis, float flip) {
-            uint8_t axis = gpad.Axis(eAxis);                                 // eAxis to axis
-            if(axis<0) return;                                               // skip if not mapped
-            float val = AMotionEvent_getAxisValue(a_event, axis, 0) * flip;  // query current axis value
-            if(pad.axes[eAxis] == val) return;                               // skip if value has not changed
-            eventFIFO.push(GPadAxis(id, eAxis, val));                        // push event
+        //---AXIS---
+        auto isFuzz = [](float val, auto& a) -> bool { // detect fuzz events
+            float delta = fabs(a.prev - val);
+            if(delta<a.fuzz) return true;
+            a.prev = val;
+            return false;
         };
 
+        auto flatzone = [&](float val, float flat) -> float {
+            float mag = std::max(fabs(val)-flat, 0.f);
+            if(mag<=0.f) return 0.f;
+            float sign = (val<0.f)?-1.f:1.f;
+            return sign * (mag / (1.f-flat));
+        };
+
+        auto axisEvent = [&](eGamepadAxis eAxis) {
+            auto& a = gpad.a[eAxis];                                           // Get axis info
+            if(a.axis<0) return;                                               // skip if not mapped
+            float flip=a.flip?-1:1;                                            // flip the axis
+            float val = AMotionEvent_getAxisValue(a_event, a.axis, 0) * flip;  // query current axis value
+            val = flatzone(val, a.flat);                                       // apply deadzone
+            if(isFuzz(val, a)) return;                                         // skip if value has not changed
+            eventFIFO.push(GPadAxis(id, eAxis, val));                          // push event
+        };
+
+        axisEvent(eAXIS_LX);  // left thumb
+        axisEvent(eAXIS_LY);
+        axisEvent(eAXIS_RX);  // right thumb
+        axisEvent(eAXIS_RY);
+        axisEvent(eAXIS_TL);  // trigger
+        axisEvent(eAXIS_TR);
+        //---------
+
+        //---HAT---
+        Gamepad& pad = gamepad[id];
         auto Hat = [&](int val, int btnNeg, int btnPos) { // convert hat axis values to button events
             if((val!=-1) && ( pad.buttons[btnNeg])) eventFIFO.push(GPadButton(id, btnNeg, 0));
             if((val!= 1) && ( pad.buttons[btnPos])) eventFIFO.push(GPadButton(id, btnPos, 0));
@@ -355,17 +401,11 @@ class Window_android : public WindowBase {
             if((val== 1) && (!pad.buttons[btnPos])) eventFIFO.push(GPadButton(id, btnPos, 1));
         };
 
-        axisEvent(eAXIS_LX, 1);
-        axisEvent(eAXIS_LY,-1);
-        axisEvent(eAXIS_RX, 1);
-        axisEvent(eAXIS_RY,-1);
-        axisEvent(eAXIS_TL, 1);
-        axisEvent(eAXIS_TR, 1);
-
         float hatx = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_HAT_X, 0);
         float haty = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_HAT_Y, 0);
         Hat(hatx, eDPAD_LEFT, eDPAD_RIGHT);
         Hat(haty, eDPAD_UP,   eDPAD_DOWN);
+        //---------
 
         if(!eventFIFO.isEmpty()) return *eventFIFO.pop();
         return {};

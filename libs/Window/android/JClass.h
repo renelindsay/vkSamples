@@ -355,6 +355,7 @@ public:
     JMotionRange getMotionRange(int axis) { return {CallObj("getMotionRange", "(I)Landroid/view/InputDevice$MotionRange;", axis)}; }
     JList<JMotionRange> getMotionRanges() { return {CallObj("getMotionRanges", "()Ljava/util/List;")}; }
     bool hasKey(int keyCode)              { return asBool(CallObj("hasKeys", "([I)[Z", asJintArray(keyCode)));}
+    int getSources()                      { return CallInt("getSources", "()I"); }
 };
 
 //------------------------------------------------------------------------------
