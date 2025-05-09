@@ -121,7 +121,7 @@ protected:
     float display_scale = 1.f;
     bool running;
     bool textinput;
-    bool has_focus;                                                          // true if window has focus
+    bool has_focus;                                                            // true if window has focus
     bool resized;
     struct shape_t { int16_t x; int16_t y; uint16_t width; uint16_t height; } shape = {};  // window shape
     std::string clipboard;                                                     // fake clipboard
@@ -135,15 +135,15 @@ protected:
     void  GetWinPos  (int16_t& x, int16_t& y) { x = shape.x; y = shape.y; }
     void  GetWinSize (int16_t& width, int16_t& height) { width = shape.width; height = shape.height; }
     void  GetWinSize (int32_t& width, int32_t& height) { width = shape.width; height = shape.height; }
-    bool  GetKeyState(eKeycode key) { return keystate[key]; }                               // return true if key is pressed
-    bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? btnstate[btn] : 0; }               // return true if mouse btn is pressed
-    void  GetMousePos(int16_t& x, int16_t& y) {x = mousepos.x; y = mousepos.y;}               // return mouse x,y position
-    Gamepad& GetGamepad(uint8_t pad) {return gamepad[pad];}                                   // return the gamepad state
+    bool  GetKeyState(eKeycode key) { return keystate[key]; }                    // return true if key is pressed
+    bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? btnstate[btn] : 0; }    // return true if mouse btn is pressed
+    void  GetMousePos(int16_t& x, int16_t& y) {x = mousepos.x; y = mousepos.y;}  // return mouse x,y position
+    Gamepad& GetGamepad(uint8_t pad) {return gamepad[pad];}                      // return the gamepad state
 
     bool IsRunning() { return running; }
     uint Width() {return shape.width;}
     uint Height(){return shape.height;}
-    bool Resized() { bool resized = resized; resized = false; return resized; }
+    bool Resized() { bool resize = resized; resized = false; return resize; }
     virtual float GetDisplayScale() {return 1.f;}
 
     virtual const char* GetClipboardText() {return clipboard.c_str(); }  // Fake clipboard. Works only locally.

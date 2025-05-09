@@ -216,8 +216,8 @@ class Window_android : public WindowBase {
     }
 
     int ConnectGamepad(uint32_t deviceID) {  // try to connect to gamepad
-        repeat(MAX_GAMEPADS) if (gpads[i].deviceID == deviceID) return i;  // if already connected return slot
-        repeat(MAX_GAMEPADS) if (gpads[i].deviceID == 0) {
+        repeat(MAX_GAMEPADS) if (gpads[i].deviceID == deviceID) return i;  // if already connected, return slot
+        repeat(MAX_GAMEPADS) if (gpads[i].deviceID == 0) {                 // find empty slot, connect, return slot
                 auto& pad = gpads[i];
                 pad.deviceID = deviceID;
                 MapGamepad(i);
@@ -254,10 +254,13 @@ class Window_android : public WindowBase {
                 bool isHat  = code &0x40;                        // extract hat flag
                 bool isAxis = code &0x20;                        // extract axis flag
                 if(isBtn) pad.b[num].eBTN = eBTN[i];             // button event code to eGamepadBtn map
-                if(isAxis && eAXIS[i]) {
+                if(isAxis && eAXIS[i]) {                         // axis event code
                     auto& ia = info.axes[num];
                     pad.a[eAXIS[i]] = {ia.axis, ia.min, ia.max, ia.flat, ia.fuzz, flip};
                 }
+                if(isBtn && i== 8) pad.a[7]={15,-1,1,0,0,num==16};  // hat-x flip
+                if(isBtn && i==10) pad.a[8]={16,-1,1,0,0,num==18};  // hat-y flip
+
                 //printf("i=%d num=%d isBtn=%d isHat=%d isAxis=%d filp=%d\n",i ,num, isBtn, isHat, isAxis, flip);
             }
         }
@@ -297,6 +300,7 @@ class Window_android : public WindowBase {
 
         auto& LY=pad.a[eAXIS_LY];  LY.flip=!LY.flip;  // up is positive
         auto& RY=pad.a[eAXIS_RY];  RY.flip=!RY.flip;  // up is positive
+        for(auto& a:pad.a) {a.min*=0.8; a.max*=0.8;}  // leave room for auto-calibrate
 
         //printf("BTNS:\n"); for(int i=0; i<MAX_BTNS; ++i) printf("%d: %d->%d\n", i, pad.b[i].BTN, pad.b[i].eBTN);
         printf("eAXIS:\n"); for(int i=0; i<MAX_AXIS; ++i) printf("i=%d: axis=%2d min=% f max=% f flat=%f fuzz=%f flip=%d\n", i, pad.a[i].axis, pad.a[i].min, pad.a[i].max, pad.a[i].flat, pad.a[i].fuzz, pad.a[i].flip );
@@ -367,11 +371,16 @@ class Window_android : public WindowBase {
             return false;
         };
 
-        auto flatzone = [&](float val, float flat) -> float {
-            float mag = std::max(fabs(val)-flat, 0.f);
+        auto flatzone = [&](float val, auto& a) -> float {
+            float mag = std::max(fabs(val)-a.flat, 0.f);
             if(mag<=0.f) return 0.f;
             float sign = (val<0.f)?-1.f:1.f;
-            return sign * (mag / (1.f-flat));
+            return sign * (mag / (1.f-a.flat)) / a.max;
+        };
+
+        auto calibrate = [&](float val, auto& a) {  // auto-calibrate min/max range
+            float mag = fabs(val);
+            if(mag>a.max) {a.max = mag; a.min = -mag;}
         };
 
         auto axisEvent = [&](eGamepadAxis eAxis) {
@@ -379,7 +388,8 @@ class Window_android : public WindowBase {
             if(a.axis<0) return;                                               // skip if not mapped
             float flip=a.flip?-1:1;                                            // flip the axis
             float val = AMotionEvent_getAxisValue(a_event, a.axis, 0) * flip;  // query current axis value
-            val = flatzone(val, a.flat);                                       // apply deadzone
+            calibrate(val, a);                                                 // adjust min/max
+            val = flatzone(val, a);                                            // apply deadzone
             if(isFuzz(val, a)) return;                                         // skip if value has not changed
             eventFIFO.push(GPadAxis(id, eAxis, val));                          // push event
         };
@@ -401,8 +411,15 @@ class Window_android : public WindowBase {
             if((val== 1) && (!pad.buttons[btnPos])) eventFIFO.push(GPadButton(id, btnPos, 1));
         };
 
-        float hatx = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_HAT_X, 0);
-        float haty = AMotionEvent_getAxisValue(a_event,AMOTION_EVENT_AXIS_HAT_Y, 0);
+        auto hatVal = [&](int8_t eAxis) -> float {
+            auto& a = gpad.a[eAxis];                                    // Get axis info
+            float flip=a.flip?-1:1;                                     // flip the axis
+            float val = AMotionEvent_getAxisValue(a_event, a.axis, 0);  // query current axis value
+            return val * flip;
+        };
+
+        float hatx = hatVal(7);
+        float haty = hatVal(8);
         Hat(hatx, eDPAD_LEFT, eDPAD_RIGHT);
         Hat(haty, eDPAD_UP,   eDPAD_DOWN);
         //---------
