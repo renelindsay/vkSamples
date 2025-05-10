@@ -1,10 +1,10 @@
 //==========================ANDROID=============================
 #ifdef VK_USE_PLATFORM_ANDROID_KHR
 
-#define ENABLE_GAMEPAD
-
 #ifndef WINDOW_ANDROID
 #define WINDOW_ANDROID
+
+#define ENABLE_GAMEPAD
 
 #include "WindowBase.h"
 #include "JClass.h"
@@ -49,15 +49,14 @@ const unsigned char ANDROID_TO_HID[256] = {
 //==========================Android=============================
 
 //------------------------ JNI Wrappers ------------------------
-
 void ShowKeyboard(bool visible, int flags=0) {
     JInputMethodManager InputMethod;
     JWindow window;
-    JView view = window.getDecorView();
+    JView decorView = window.getDecorView();
     if(visible) {
-        InputMethod.showSoftInput(view, flags);
+        InputMethod.showSoftInput(decorView, flags);
     } else {
-        jobject token = view.getWindowToken();
+        jobject token = decorView.getWindowToken();
         InputMethod.hideSoftInputFromWindow(token, flags);
     }
 }
@@ -210,6 +209,7 @@ class Window_android : public WindowBase {
     virtual ~Window_android(){}
 
     //-------------------- GAMEPAD ---------------------
+ #ifdef ENABLE_GAMEPAD
     int8_t FindGamepad(AInputEvent* a_event) {  // returns gamepad slot id or -1 if failed
         uint32_t deviceID = AInputEvent_getDeviceId(a_event);  // get deviceID from event
         return ConnectGamepad(deviceID);                       // (connect) and return slot
@@ -303,7 +303,7 @@ class Window_android : public WindowBase {
         for(auto& a:pad.a) {a.min*=0.8; a.max*=0.8;}  // leave room for auto-calibrate
 
         //printf("BTNS:\n"); for(int i=0; i<MAX_BTNS; ++i) printf("%d: %d->%d\n", i, pad.b[i].BTN, pad.b[i].eBTN);
-        printf("eAXIS:\n"); for(int i=0; i<MAX_AXIS; ++i) printf("i=%d: axis=%2d min=% f max=% f flat=%f fuzz=%f flip=%d\n", i, pad.a[i].axis, pad.a[i].min, pad.a[i].max, pad.a[i].flat, pad.a[i].fuzz, pad.a[i].flip );
+        //printf("eAXIS:\n"); for(int i=0; i<MAX_AXIS; ++i) printf("i=%d: axis=%2d min=% f max=% f flat=%f fuzz=%f flip=%d\n", i, pad.a[i].axis, pad.a[i].min, pad.a[i].max, pad.a[i].flat, pad.a[i].fuzz, pad.a[i].flip );
     }
 
     void MonitorGamepads() {  // poll for gamepad connect/disconnect
@@ -353,9 +353,11 @@ class Window_android : public WindowBase {
             if(eBTN>0) eventFIFO.push(GPadButton(id, eBTN, down));  // is button:  eBTN event
             if(eBTN<0) eventFIFO.push(GPadAxis  (id,-eBTN, down));  // is trigger: aAXIS event
         }
-        if(!eventFIFO.isEmpty()) return *eventFIFO.pop();
-        return {};
+        return eventFIFO.pop();
     }
+
+ #define eAXIS_HATX 7
+ #define eAXIS_HATY 8
 
     EventType GetGPadAxisEvent(AInputEvent* a_event) {
         //ASSERT(AInputEvent_getType(a_event)==AINPUT_EVENT_TYPE_MOTION, "Not a motion event.");
@@ -418,22 +420,26 @@ class Window_android : public WindowBase {
             return val * flip;
         };
 
-        float hatx = hatVal(7);
-        float haty = hatVal(8);
+        float hatx = hatVal(eAXIS_HATX);
+        float haty = hatVal(eAXIS_HATY);
         Hat(hatx, eDPAD_LEFT, eDPAD_RIGHT);
         Hat(haty, eDPAD_UP,   eDPAD_DOWN);
         //---------
 
-        if(!eventFIFO.isEmpty()) return *eventFIFO.pop();
-        return {};
+        return eventFIFO.pop();
     }
+ #else  // ENABLE_GAMEPAD
+    void MonitorGamepads() {}
+    EventType GetGPadAxisEvent(AInputEvent* a_event){return {};}
+    EventType GetGPadButtonEvent(AInputEvent* a_event){return {};}
+#endif // ENABLE_GAMEPAD
     //--------------------------------------------------
     //-------------------- KEYBOARD --------------------
     EventType GetKeyboardEvent(AInputEvent* a_event) {  // KEYBOARD
         int32_t a_action = AKeyEvent_getAction(a_event);
         int32_t keycode  = AKeyEvent_getKeyCode(a_event);
         uint8_t hidcode  = ANDROID_TO_HID[keycode];
-        // printf("key action:%d keycode=%d",a_action,keycode);
+        // printf("key action:%d keycode=%d\n",a_action,keycode);
         if(!hidcode) return {};  // unknown key
 
         switch (a_action) {
@@ -535,7 +541,7 @@ class Window_android : public WindowBase {
     //--------------- Main event handler ---------------
     EventType GetEvent(bool wait_for_event = false) {
         EventType event = {};
-        if (!eventFIFO.isEmpty()) return *eventFIFO.pop();  // pop message from message queue buffer
+        if (!eventFIFO.isEmpty()) return eventFIFO.pop();  // pop message from message queue buffer
 
         int events = 0;
         struct android_poll_source* source;
@@ -585,9 +591,9 @@ class Window_android : public WindowBase {
                 if(!event && isJoystick) {event = GetGPadAxisEvent   (a_event);}
                 if(!event && isTouch)    {event = GetTouchscreenEvent(a_event);}
                 if(!event && isMouse)    {event = GetMouseEvent      (a_event);}
-                if((!event) && (!eventFIFO.isEmpty())) event = *eventFIFO.pop();  // TODO: return {}
+                if(!event) event = eventFIFO.pop();
 
-                handled |= event;  // if an event was created, mark it as handled
+                //handled |= event;  // if an event was created, mark it as handled
                 handled = 1;       // on second thought, mark it as handled anyway
                 AInputQueue_finishEvent(app->inputQueue, a_event, handled);
                 return event;

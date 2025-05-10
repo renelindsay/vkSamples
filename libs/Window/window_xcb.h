@@ -500,7 +500,7 @@ EventType Window_xcb::GetEvent(bool wait_for_event) {
 #ifdef ENABLE_GAMEPAD
     ReadGamepadEvents();
 #endif
-    if (!eventFIFO.isEmpty()) return *eventFIFO.pop();  // pop message from message queue buffer
+    if (!eventFIFO.isEmpty()) return eventFIFO.pop();  // pop message from message queue buffer
     xcb_generic_event_t* x_event;
     if (wait_for_event) x_event = xcb_wait_for_event(xcb_connection);  // Blocking mode
     else                x_event = xcb_poll_for_event(xcb_connection);  // Non-blocking mode
@@ -515,7 +515,7 @@ EventType Window_xcb::GetEvent(bool wait_for_event) {
 }
 
 float Window_xcb::GetDisplayScale() {
-    float dpi = 0.0;
+    float dpi = 0.f;
     XrmValue value;
     char *type = NULL;
     char *resourceString = XResourceManagerString(display);

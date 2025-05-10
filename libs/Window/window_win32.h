@@ -156,7 +156,7 @@ void Window_win32::SetWinSize(uint w, uint h) {
 
 EventType Window_win32::GetEvent(bool wait_for_event) {
     // EventType event;
-    if (!eventFIFO.isEmpty()) return *eventFIFO.pop();
+    if (!eventFIFO.isEmpty()) return eventFIFO.pop();
 
     if (running) {
         MSG msg = {};

@@ -51,9 +51,9 @@ class EventFIFO {
 
   public:
     EventFIFO() : head(0), tail(0) {}
-    bool isEmpty() const { return head == tail; }                                          // Check if queue is empty.
-    void push(EventType const& item) { ++head; buf[head %= SIZE] = item; }                 // Add item to queue
-    EventType* pop() { if(isEmpty()) return nullptr; ++tail; return &buf[tail %= SIZE]; }  // Returns item ptr, or 0 if queue is empty
+    bool isEmpty() const { return head == tail; }                                   // Check if queue is empty.
+    void push(EventType const& item) { ++head; buf[head %= SIZE] = item; }          // Add item to queue
+    EventType pop() { if(isEmpty()) return {}; ++tail; return buf[tail %= SIZE]; }  // Returns next event, or {} if queue is empty
 };
 //==============================================================
 //=========================MULTI-TOUCH==========================
@@ -157,7 +157,7 @@ protected:
     virtual void SetWinSize(uint w, uint h) {}
     virtual const void* GetNativeHandle() const = 0;              // For creating Vulkan/OpenGL Surface
     virtual void ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {}
-    virtual void SetCursor(eCursor id) {};
+    virtual void SetCursor(eCursor id) {}
 
     //--Event loop--
     virtual EventType GetEvent(bool wait_for_event = false) = 0;  // Fetch one event from the queue.
