@@ -5,6 +5,7 @@
 #define WINDOW_ANDROID
 
 #define ENABLE_GAMEPAD
+#define ENABLE_CLIPBOARD
 
 #include "WindowBase.h"
 #include "JClass.h"
@@ -195,7 +196,7 @@ class Window_android : public WindowBase {
                 android_app_post_exec_cmd(app, cmd);
             }
         }
-        ALooper_pollOnce(10, NULL, NULL, NULL);  // for keyboard
+        ALooper_pollOnce(20, NULL, NULL, NULL);  // for keyboard
         //--------------------------------------------------
     };
 
@@ -646,6 +647,28 @@ class Window_android : public WindowBase {
         ANativeWindow_unlockAndPost(wnd);
         ANativeWindow_release(wnd);
     }
+
+#ifdef ENABLE_CLIPBOARD
+#define EXIT_IF_NULL(var) if(!var) return nullptr;
+    const char* GetClipboardText() {
+        JClipboardManager clipman;
+        JClipData clip = clipman.getPrimaryClip();   EXIT_IF_NULL(clip.obj)
+        JClipDataItem item = clip.getItemAt(0);      EXIT_IF_NULL(item.obj)
+        JCharSequence cs = item.getText();           EXIT_IF_NULL(cs.obj)
+        clipboard = cs.toString();
+        return clipboard.c_str();
+    }
+
+    void SetClipboardText(const char* str) {
+        JClipboardManager clipman;
+        JString label("");
+        JString text(str);
+        JClipData clip(label, text);
+        clipman.setPrimaryClip(clip);
+    }
+#undef EXIT_IF_NULL
+#endif
+
 };
 
 #endif

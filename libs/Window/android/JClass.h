@@ -34,6 +34,7 @@
 #include <jni.h>
 #include <string>
 #include <vector>
+#include <assert.h>
 #include <android_native_app_glue.h>
 #include "android_fopen.h"
 
@@ -81,7 +82,7 @@ int printf(const char* format, ...) {  // printf for Android
     return strlen(buf);
 }
 //--------------------------------------------------------------------------------------------------
-//----------------------------------JClass: JNI Wrappers--------------------------------------------
+//--------------------------------------JClass: JNI Wrappers----------------------------------------
 class JClass {
     bool attached = false;
 public:
@@ -113,6 +114,10 @@ public:
         attached = false;
     }
 
+    jobject GlobalRef() {
+        return env->NewGlobalRef(obj);
+    }
+
     jclass FindClass(const char* class_name) {  // using local ref
         cls = env->FindClass(class_name);
         if(!cls) printf("ERROR: FindClass Failed to find class:%s\n", class_name);
@@ -124,6 +129,11 @@ public:
         return cls;
     }
 
+    void SetObject(jobject object) {
+        obj = object;
+        cls = GetObjectClass(object);
+    }
+
     // ----------------- jstring to std::string -----------------
     std::string asString(jstring jStr) const {
         if (!jStr) return "";
@@ -133,6 +143,10 @@ public:
         return result;
     }
     std::string asString(jobject jStr) const {return asString((jstring)jStr);}
+    //-----------------------------------------------------------
+    // ----------------- std::string to jstring -----------------
+    jstring newStr(const char* str) {return env->NewStringUTF(str);}
+    void    delStr(jstring jstr) {env->DeleteLocalRef(jstr);}
     //-----------------------------------------------------------
     //-------------- jintArray to std::vector<int> --------------
     std::vector<int> asIntVector(jintArray intArray) const { // Convert Java int[] to std::vector<int>
@@ -154,10 +168,56 @@ public:
         return env->GetStaticMethodID(cls, name, sig);
     }
 
+    jfieldID Field(const char* name, const char* sig) {
+        return env->GetFieldID(cls, name, sig);
+    }
+
+    jfieldID StaticField(const char* name, const char* sig) {
+        return env->GetStaticFieldID(cls, name, sig);
+    }
+
+    //-----------------------------------------------------------
+
+    int IntField(const char* name, const char* sig) {
+        return env->GetIntField(cls, StaticField(name, sig));
+    }
+
+    jstring StaticStrField(const char* name, const char* sig) {
+        return (jstring)env->GetStaticObjectField(cls, StaticField(name, sig));
+    }
+
+    //-----------------------------------------------------------
+
     template<typename... Args>
     jobject CallStaticObj(const char* name, const char* sig, Args&&... args) {
         jmethodID method = StaticMethod(name, sig);
         return env->CallStaticObjectMethod(cls, method, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    int CallStaticInt(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = StaticMethod(name, sig);
+        return env->CallIntMethod(cls, method, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    float CallStaticFloat(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = StaticMethod(name, sig);
+        return env->CallStaticFloatMethod(cls, method, std::forward<Args>(args)...);
+    }
+
+    template<typename... Args>
+    bool CallStaticBool(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = StaticMethod(name, sig);
+        return env->CallStaticBooleanMethod(cls, method, std::forward<Args>(args)...);
+    }
+
+    //-----------------------------------------------------------
+
+    template<typename... Args>
+    void CallVoid(const char* name, const char* sig, Args&&... args) {
+        jmethodID method = Method(name, sig);
+        env->CallVoidMethod(obj, method, std::forward<Args>(args)...);
     }
 
     template<typename... Args>
@@ -238,19 +298,32 @@ public:
     //-----------------------------------------------------------
 };
 
+struct JString : public JClass {
+    jstring jstr = nullptr;
+    JString(const char* str) { jstr = env->NewStringUTF(str);}
+    JString(std::string& str) { jstr = env->NewStringUTF(str.c_str());}
+    ~JString() {if(jstr) env->DeleteLocalRef(jstr);}
+    operator jstring() const {return jstr;}
+    std::string toString() {return asString(jstr);}
+};
+
 //------------------------------------------------------------------------------
 
 class JActivity : public JClass {  // Context
     jclass cls = GetObjectClass(activity_obj);
-    jfieldID  f_INPUT_SERVICE        = env->GetStaticFieldID(cls, "INPUT_SERVICE", "Ljava/lang/String;");
-    jfieldID  f_INPUT_METHOD_SERVICE = env->GetStaticFieldID(cls, "INPUT_METHOD_SERVICE", "Ljava/lang/String;");
-    jmethodID m_getSystemService = env->GetMethodID(cls, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
-    jmethodID m_getWindow        = env->GetMethodID(cls, "getWindow", "()Landroid/view/Window;");
 public:
-    jstring INPUT_SERVICE()        { return (jstring)env->GetStaticObjectField(cls, f_INPUT_SERVICE); }
-    jstring INPUT_METHOD_SERVICE() { return (jstring)env->GetStaticObjectField(cls, f_INPUT_METHOD_SERVICE); }
-    jobject getSystemService(jstring jstr) { return env->CallObjectMethod(activity_obj, m_getSystemService, jstr); }
-    jobject getWindow()                    { return env->CallObjectMethod(activity_obj, m_getWindow); }
+    JActivity(){ SetObject(activity_obj); }
+    ~JActivity(){ obj = nullptr; }
+    const int CONTENT_ID = 0x01020002;   // android.R.id.content
+    jstring INPUT_SERVICE()        { return StaticStrField("INPUT_SERVICE", "Ljava/lang/String;"); }
+    jstring INPUT_METHOD_SERVICE() { return StaticStrField("INPUT_METHOD_SERVICE", "Ljava/lang/String;"); }
+    jstring CLIPBOARD_SERVICE()    { return StaticStrField("CLIPBOARD_SERVICE", "Ljava/lang/String;"); }
+
+    jobject getSystemService(jstring jstr) { return CallObj("getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;", jstr); }
+    jobject getWindow()                    { return CallObj("getWindow", "()Landroid/view/Window;"); }
+    //void setContextView(jobject view) { CallVoid("setContentView", "(Landroid/view/View;)V", view); }
+    //jobject findViewById(int id) { return CallObj("findViewById", "(I)Landroid/view/View;", id); }
+    //void runOnUiThread(jobject runnable) { CallVoid("runOnUiThread", "(Ljava/lang/Runnable;)V"); }
 };
 
 class JInputManager : public JClass {
@@ -260,6 +333,45 @@ public:
     std::vector<int> getInputDeviceIds() { return asIntVector(CallObj("getInputDeviceIds", "()[I")); }
     //std::vector<int> getInputDeviceIds() { return CallIntVec("getInputDeviceIds", "()[I"); }
 };
+
+//------------------------------------------------------------------------------
+// CLIPBOARD
+class JCharSequence : public JClass {
+    jclass cls = FindClass("java/lang/CharSequence");
+public:
+    JCharSequence(jobject cs_obj) { obj = cs_obj; }
+    std::string toString() { return CallStr("toString", "()Ljava/lang/String;"); }
+};
+
+class JClipDataItem : public JClass {
+    jclass cls = FindClass("android/content/ClipData$Item");
+public:
+    JClipDataItem(jobject item_obj) { obj = item_obj; }
+    JCharSequence getText() { return JCharSequence(CallObj("getText", "()Ljava/lang/CharSequence;")); }
+};
+
+class JClipData : public JClass {
+    jclass cls = FindClass("android/content/ClipData");
+public:
+    JClipData(jobject cd_obj) { obj = cd_obj; }
+    JClipData(jstring label, jstring text) { newPlainText(label, text); }
+    JClipDataItem getItemAt(int index) { return JClipDataItem(CallObj("getItemAt", "(I)Landroid/content/ClipData$Item;", index));}
+    void newPlainText(jstring label, jstring text) { assert(!obj); obj = CallStaticObj("newPlainText", "(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Landroid/content/ClipData;", label, text); }
+    void newPlainText(const char* label, const char* text) { newPlainText(newStr(label), newStr(text)); }
+};
+
+class JClipboardManager : public JClass {
+public:
+    JClipboardManager() {
+        JActivity a;
+        obj = a.getSystemService(a.CLIPBOARD_SERVICE());
+        cls = GetObjectClass(obj);
+    }
+    void setPrimaryClip(JClipData& clipData) { CallVoid("setPrimaryClip", "(Landroid/content/ClipData;)V", clipData.obj); }
+    JClipData getPrimaryClip() { return JClipData(CallObj("getPrimaryClip", "()Landroid/content/ClipData;")); }
+    JCharSequence getText() { return JCharSequence(CallObj("getText", "()Ljava/lang/CharSequence;")); }  // deprecated
+};
+//------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 // for ShowKeyboard
 class JInputMethodManager : public JClass {
@@ -294,6 +406,7 @@ public:
         obj = env->NewObject(cls, constructor, eventType, keyCode);
     }
     int getUnicodeChar(int metaState) {return CallInt("getUnicodeChar", "(I)I", metaState);}
+    //std::string getCharacters() {return CallStr("getCharacters", "()Ljava/lang/String;");}  // fails. (deprecated in API 29)
 };
 
 static std::string UnicodeToUTF8(int unicode) {
