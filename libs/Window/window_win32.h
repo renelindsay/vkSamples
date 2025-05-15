@@ -9,6 +9,7 @@
 
 #define ENABLE_MULTITOUCH //1kb
 #define ENABLE_GAMEPAD    //2kb
+#define ENABLE_CLIPBOARD  //1kb
 
 #include "WindowBase.h"
 #include <windowsx.h>  // Mouse
@@ -64,6 +65,11 @@ public:
 
     void DetectGamepads();
     void ReadGamepadEvents();
+
+#ifdef ENABLE_CLIPBOARD
+    void SetClipboardText(const char* text) override;
+    const char* GetClipboardText() override;
+#endif
 };
 //==============================================================
 #endif
@@ -417,6 +423,40 @@ void Window_win32::ReadGamepadEvents() {
     void Window_win32::ReadGamepadEvents(){}
 #endif
 //------------------
+
+//---- Clipboard ----
+#ifdef ENABLE_CLIPBOARD
+    void Window_win32::SetClipboardText(const char* text) {
+        if (!OpenClipboard(nullptr)) return;
+        EmptyClipboard();
+
+        size_t len = strlen(text) + 1;
+        HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, len);
+        if (!hMem) { CloseClipboard(); return; }
+
+        memcpy(GlobalLock(hMem), text, len);
+        GlobalUnlock(hMem);
+        SetClipboardData(CF_TEXT, hMem);
+        CloseClipboard();
+    }
+
+    const char* Window_win32::GetClipboardText() {
+        if (!OpenClipboard(nullptr)) return nullptr;
+
+        HANDLE hData = GetClipboardData(CF_TEXT);
+        if (!hData) { CloseClipboard(); return nullptr; }
+
+        char* pszText = static_cast<char*>(GlobalLock(hData));
+        if (pszText) {
+            clipboard = pszText;
+            GlobalUnlock(hData);
+        }
+        CloseClipboard();
+        return clipboard.c_str();
+    }
+
+#endif
+//-------------------
 
 #endif  // WINDOW_IMPLEMENTATION
 
