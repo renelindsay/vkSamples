@@ -124,7 +124,7 @@ protected:
     bool has_focus;                                                            // true if window has focus
     bool resized;
     struct shape_t { int16_t x; int16_t y; uint16_t width; uint16_t height; } shape = {};  // window shape
-    std::string clipboard;                                                     // fake clipboard
+    std::string clipboard;
 
   public:
     WindowBase() : running(false), textinput(false), has_focus(false), resized(false){}
@@ -146,8 +146,8 @@ protected:
     bool Resized() { bool resize = resized; resized = false; return resize; }
     virtual float GetDisplayScale() {return 1.f;}
 
-    virtual const char* GetClipboardText() {return clipboard.c_str(); }  // Fake clipboard. Works only locally.
-    virtual void SetClipboardText(const char* str) { clipboard = str; }  // TODO: Override this with platform implementation.
+    virtual const char* GetClipboardText() {return clipboard.c_str(); }  // Fallback clipboard. Works only locally.
+    virtual void SetClipboardText(const char* str) { clipboard = str; }  // Platform implementation overrides this.
 
     //--Control functions--
     virtual void ShowKeyboard(bool enabled);                      // Shows the Android soft-keyboard. //TODO: Enable TextEvent?

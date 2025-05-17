@@ -1,6 +1,8 @@
 // dear imgui: Platform Binding for vkWindow
-// This needs to be used along with the Vulkan Renderer
-// (Info: vkWindow is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan graphics context creation, etc.)
+//
+// vkWindow is a cross-platform library for creating a window for graphics rendering.
+// It provides input event hooks for keyboard, mouse, touch-screen and gamepad events,
+// and works on Windows, Linux and Android. Bring your own graphics renderer. (Vulkan/OpenGL/pixbuf)
 
 #include "vkWindow.h"
 #include "imgui_impl_vkWindow.h"
@@ -28,8 +30,9 @@ bool ImGui_ImplvkWindow_Init(vkWindow* window) {
 
     // Setup back-end capabilities flags
     ImGuiIO& io = ImGui::GetIO();
-    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
-    //io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
+    io.BackendFlags |= ImGuiBackendFlags_HasGamepad;         // Gamepad supported
+    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;    // We can honor GetMouseCursor() values (optional)
+    //io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;     // We can honor io.WantSetMousePos requests (optional, rarely used)
     io.BackendPlatformName = "imgui_impl_vkWindow";
 
     KeyMap[eKEY_NONE]         = ImGuiKey_None;
@@ -271,9 +274,9 @@ void ImGui_ImplvkWindow_NewFrame() {
     //------------------------------------------------
 
     ImGui_ImplvkWindow_UpdateMouseCursor();
+    ImGui_ImplvkWindow_UpdateGamepads();
 
     //ImGui_ImplGlfw_UpdateMousePosAndButtons();  //TODO
-    //ImGui_ImplGlfw_UpdateGamepads();            // Update game controllers (if enabled and available) 
 }
 
 void ImGui_ImplvkWindow_UpdateMouseCursor() {
@@ -298,4 +301,53 @@ void ImGui_ImplvkWindow_UpdateMouseCursor() {
         default: cursor = eArrow;
     }
     g_window->SetCursor(cursor);
+}
+
+void ImGui_ImplvkWindow_UpdateGamepads() {
+    ImGuiIO& io = ImGui::GetIO();
+    if ((io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad) == 0) return;
+    Gamepad& pad = g_window->GetGamepad(0);
+    if(pad.active==false) return;
+
+    // Buttons
+    io.AddKeyEvent(ImGuiKey_GamepadFaceDown,  pad.buttons[eBTN_A]);       // A
+    io.AddKeyEvent(ImGuiKey_GamepadFaceRight, pad.buttons[eBTN_B]);       // B
+    io.AddKeyEvent(ImGuiKey_GamepadFaceLeft,  pad.buttons[eBTN_X]);       // X
+    io.AddKeyEvent(ImGuiKey_GamepadFaceUp,    pad.buttons[eBTN_Y]);       // Y
+    io.AddKeyEvent(ImGuiKey_GamepadL1,        pad.buttons[eBTN_TL]);      // Shoulder Left
+    io.AddKeyEvent(ImGuiKey_GamepadR1,        pad.buttons[eBTN_TR]);      // Shoulder Right
+    io.AddKeyEvent(ImGuiKey_GamepadL3,        pad.buttons[eBTN_THUMBL]);  // Thumb Left
+    io.AddKeyEvent(ImGuiKey_GamepadR3,        pad.buttons[eBTN_THUMBR]);  // Thumb Right
+    io.AddKeyEvent(ImGuiKey_GamepadDpadUp,    pad.buttons[eDPAD_UP]);     // DPad Up
+    io.AddKeyEvent(ImGuiKey_GamepadDpadDown,  pad.buttons[eDPAD_DOWN]);   // DPad Down
+    io.AddKeyEvent(ImGuiKey_GamepadDpadLeft,  pad.buttons[eDPAD_LEFT]);   // DPad Left
+    io.AddKeyEvent(ImGuiKey_GamepadDpadRight, pad.buttons[eDPAD_RIGHT]);  // DPad Right
+    io.AddKeyEvent(ImGuiKey_GamepadBack,      pad.buttons[eBTN_SELECT]);  // Back
+    io.AddKeyEvent(ImGuiKey_GamepadStart,     pad.buttons[eBTN_START]);   // Start
+
+    // Axes
+    float LX = pad.axes[eAXIS_LX];
+    float LY = pad.axes[eAXIS_LY];
+    float RX = pad.axes[eAXIS_RX];
+    float RY = pad.axes[eAXIS_RY];
+    float TL = pad.axes[eAXIS_TL];
+    float TR = pad.axes[eAXIS_TR];
+
+    const float DEADZONE = 0.3f;
+
+    // Left Stick
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadLStickLeft,  LX < -DEADZONE, -LX * (LX < 0));
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadLStickRight, LX >  DEADZONE,  LX * (LX > 0));
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadLStickDown,  LY < -DEADZONE, -LY * (LY < 0));
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadLStickUp,    LY >  DEADZONE,  LY * (LY > 0));
+
+    // Right Stick
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadRStickLeft,  RX < -DEADZONE, -RX * (RX < 0));
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadRStickRight, RX >  DEADZONE,  RX * (RX > 0));
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadRStickDown,  RY < -DEADZONE, -RY * (RY < 0));
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadRStickUp,    RY >  DEADZONE,  RY * (RY > 0));
+
+    // Triggers
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadL2, TL > 0.1f, TL);
+    io.AddKeyAnalogEvent(ImGuiKey_GamepadR2, TR > 0.1f, TR);
 }

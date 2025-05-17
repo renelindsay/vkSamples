@@ -11,6 +11,7 @@
 #define ENABLE_XCB_IMAGE   // requires libxcb-image0-dev
 #define ENABLE_XCB_CURSOR  // requires libxcb-cursor-dev
 #define ENABLE_GAMEPAD     // requires libevdev-dev (8kb)
+#define ENABLE_CLIPBOARD
 
 //-------------------------------------------------
 #include "WindowBase.h"
@@ -183,6 +184,26 @@ class Window_xcb : public WindowBase {
     float GetDisplayScale();
     void ShowImage(uint32_t* buf, uint32_t width, uint32_t height);
     void SetCursor(eCursor id);
+
+#ifdef ENABLE_CLIPBOARD
+private:
+    xcb_atom_t atom_CLIPBOARD;   // "CLIPBOARD"
+    xcb_atom_t atom_UTF8_STRING; // "UTF8_STRING"
+    xcb_atom_t atom_TARGETS;     // "TARGETS"
+    xcb_atom_t atom_PROPERTY;    // any name, often "XSEL_DATA"
+    xcb_atom_t atom_STRING;      // fallback
+
+    void InitClipboard();
+    bool RequestClipboard();
+public:
+    virtual const char* GetClipboardText();
+    virtual void SetClipboardText(const char* str);
+#else
+    void InitClipboard(){};
+#endif
+
+
+
 };
 //==============================================================
 #endif
@@ -265,8 +286,10 @@ void Window_xcb::Create(const char* title, uint width, uint height) {
     k_keymap = xkb_keymap_new_from_names(k_ctx, NULL, XKB_KEYMAP_COMPILE_NO_FLAGS);  // use current keyboard settings
     k_state  = xkb_state_new(k_keymap);
     //--------------------
-    InitTouch();
+    InitTouch();  
+    InitClipboard();
     //--------------------
+
     SetTitle(title);
     eventFIFO.push(ResizeEvent(width, height));  // ResizeEvent BEFORE focus, for consistency with win32 and android
 
@@ -487,6 +510,70 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
              xcb_expose_event_t& e = *(xcb_expose_event_t*)x_event;
              xcb_copy_area(xcb_connection,pixmap,xcb_window,gc,e.x,e.y,e.x,e.y,e.width,e.height);
              xcb_flush(xcb_connection);
+        }break;
+#endif
+
+#ifdef ENABLE_CLIPBOARD
+        case XCB_SELECTION_NOTIFY: {  // get clipboard text
+            xcb_selection_notify_event_t* sel = (xcb_selection_notify_event_t*)x_event;
+            if (sel->property == XCB_NONE) { clipboard = ""; break; }
+
+            xcb_get_property_cookie_t prop_cookie =
+                xcb_get_property(xcb_connection, 0, xcb_window, atom_PROPERTY,
+                                          XCB_GET_PROPERTY_TYPE_ANY, 0, 1024);
+            xcb_get_property_reply_t* prop_reply =
+                xcb_get_property_reply(xcb_connection, prop_cookie, nullptr);
+            if (prop_reply) {
+                int len = xcb_get_property_value_length(prop_reply);
+                const char* val = (const char*)xcb_get_property_value(prop_reply);
+                clipboard.assign(val, len);
+                free(prop_reply);
+            }
+        }break;
+
+        case XCB_SELECTION_REQUEST: {
+            xcb_selection_request_event_t* req = (xcb_selection_request_event_t*)x_event;
+
+            xcb_selection_notify_event_t notify = {};
+            notify.response_type = XCB_SELECTION_NOTIFY;
+            notify.sequence  = 0;
+            notify.time      = req->time;
+            notify.requestor = req->requestor;
+            notify.selection = req->selection;
+            notify.target    = req->target;
+            notify.property  = req->property;
+
+            if (req->target == atom_TARGETS) {
+                xcb_atom_t targets[] = { atom_UTF8_STRING, atom_STRING, atom_TARGETS };
+                xcb_change_property(
+                    xcb_connection,
+                    XCB_PROP_MODE_REPLACE,
+                    req->requestor,
+                    req->property,
+                    XCB_ATOM_ATOM,
+                    32,
+                    sizeof(targets) / sizeof(targets[0]),
+                    targets
+                );
+            } else
+            if (req->target == atom_UTF8_STRING || req->target == atom_STRING) {
+                xcb_atom_t type = (req->target == atom_UTF8_STRING) ? atom_UTF8_STRING : atom_STRING;
+                xcb_change_property(
+                    xcb_connection,
+                    XCB_PROP_MODE_REPLACE,
+                    req->requestor,
+                    req->property,
+                    type,
+                    8,  // 8 bits per char
+                    clipboard.size(),
+                    clipboard.c_str()
+                );
+            } else {
+                notify.property = XCB_NONE;  // Unsupported target
+            }
+
+            xcb_send_event(xcb_connection, false, req->requestor, XCB_EVENT_MASK_NO_EVENT, (const char*)&notify);
+            xcb_flush(xcb_connection);
         }break;
 #endif
         default:
@@ -910,6 +997,45 @@ void Window_xcb::SetGamepadRumble(int index, uint16_t weak, uint16_t strong) {  
 
 #endif
 
+#ifdef ENABLE_CLIPBOARD
+    void Window_xcb::InitClipboard() {
+        auto intern = [&](const char* name) {
+            xcb_intern_atom_cookie_t cookie = xcb_intern_atom(xcb_connection, 0, strlen(name), name);
+            xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(xcb_connection, cookie, nullptr);
+            xcb_atom_t atom = reply ? reply->atom : XCB_NONE;
+            free(reply);
+            return atom;
+        };
+        atom_CLIPBOARD   = intern("CLIPBOARD");
+        atom_UTF8_STRING = intern("UTF8_STRING");
+        atom_STRING      = intern("STRING");
+        atom_PROPERTY    = intern("XSEL_DATA");
+    }
+
+    bool Window_xcb::RequestClipboard() {
+        xcb_convert_selection(xcb_connection, xcb_window,
+            atom_CLIPBOARD,    // selection
+            atom_UTF8_STRING,  // target
+            atom_PROPERTY,     // property to receive data
+            XCB_CURRENT_TIME);
+        xcb_flush(xcb_connection);
+        return true;
+    }
+
+
+    const char* Window_xcb::GetClipboardText() {
+        RequestClipboard();  // triggers XCB_SELECTION_NOTIFY event
+        xcb_generic_event_t* event = xcb_wait_for_event(xcb_connection);
+        TranslateEvent(event);
+        return clipboard.c_str();
+    }
+
+    void Window_xcb::SetClipboardText(const char* str) {
+        clipboard = str;
+        xcb_set_selection_owner(xcb_connection, xcb_window, atom_CLIPBOARD, XCB_CURRENT_TIME);
+        xcb_flush(xcb_connection);
+    }
+#endif
 
 //-------------
 
