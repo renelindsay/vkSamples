@@ -511,7 +511,7 @@ class Window_android : public WindowBase {
 
         int16_t x = (int16_t)AMotionEvent_getX(a_event, 0);
         int16_t y = (int16_t)AMotionEvent_getY(a_event, 0);
-        bool moved = (x!=mousepos.x || y!=mousepos.y);
+        bool moved = (x!=mouse.pos.x || y!=mouse.pos.y);
         if(!moved && action==AMOTION_EVENT_ACTION_HOVER_MOVE) return event;  // eliminate fake move events
 
         // Get button state (bitmask: 0x1 = left, 0x2 = right, 0x4 = middle)
@@ -519,9 +519,9 @@ class Window_android : public WindowBase {
         uint8_t bestBtn = GetBtnState(1) ? 1 : GetBtnState(2) ? 2 : GetBtnState(3) ? 3 : 0;
 
         uint8_t btn = 0;  // get button that changed
-        if(btnstate[3] != (buttons & AMOTION_EVENT_BUTTON_SECONDARY)) btn = 3;
-        if(btnstate[2] != (buttons & AMOTION_EVENT_BUTTON_TERTIARY)) btn = 2;
-        if(btnstate[1] != (buttons & AMOTION_EVENT_BUTTON_PRIMARY)) btn = 1;
+        if(mouse.btn[3] != (buttons & AMOTION_EVENT_BUTTON_SECONDARY)) btn = 3;
+        if(mouse.btn[2] != (buttons & AMOTION_EVENT_BUTTON_TERTIARY)) btn = 2;
+        if(mouse.btn[1] != (buttons & AMOTION_EVENT_BUTTON_PRIMARY)) btn = 1;
 
         switch (action) {
             case AMOTION_EVENT_ACTION_BUTTON_PRESS   : event = MouseEvent(eDOWN, x, y, btn);     break;

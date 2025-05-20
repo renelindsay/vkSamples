@@ -642,11 +642,11 @@ void Window_xcb::ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {  //
 #endif
 
 
-void Window_xcb::SetCursor(eCursor id) {
 #ifdef ENABLE_XCB_CURSOR
+void Window_xcb::SetCursor(eCursor id) {
     xcb_change_window_attributes(xcb_connection, xcb_window, XCB_CW_CURSOR, &cursors[id]);
-#endif
 }
+#endif
 
 //---Gamepad---
 #ifdef ENABLE_GAMEPAD

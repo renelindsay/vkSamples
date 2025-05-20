@@ -3154,7 +3154,7 @@ bool ReadWholeFile(std::vector<unsigned char> *out, std::string *err,
     rewind(file);
     out->resize(size);
     void* buf = out->data();
-    fread(buf, 1, size, file); 
+    size_t s=fread(buf, 1, size, file);
     fclose(file);
     return true;
 #endif                   

@@ -98,11 +98,17 @@ struct Gamepad {
     float axes[8]     = {};
 };
 //==============================================================
+//=========================== Mouse ============================
+struct Mouse {
+    struct {int16_t x; int16_t y;}pos = {};                                    // mouse position
+    bool btn[6] = {};                                                          // mouse btn state
+    void SetPos(int16_t x, int16_t y);
+};
+//==============================================================
 //======================Window base class=======================
 class WindowBase {
 protected:
-    struct {int16_t x; int16_t y;}mousepos = {};                               // mouse position
-    bool btnstate[6]   = {};                                                   // mouse btn state
+    Mouse mouse;                                                               // mouse state
     bool keystate[256] = {};                                                   // keyboard state
     Gamepad gamepad[MAX_GAMEPADS];                                             // gamepad state
 
@@ -135,10 +141,10 @@ protected:
     void  GetWinPos  (int16_t& x, int16_t& y) { x = shape.x; y = shape.y; }
     void  GetWinSize (int16_t& width, int16_t& height) { width = shape.width; height = shape.height; }
     void  GetWinSize (int32_t& width, int32_t& height) { width = shape.width; height = shape.height; }
-    bool  GetKeyState(eKeycode key) { return keystate[key]; }                    // return true if key is pressed
-    bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? btnstate[btn] : 0; }    // return true if mouse btn is pressed
-    void  GetMousePos(int16_t& x, int16_t& y) {x = mousepos.x; y = mousepos.y;}  // return mouse x,y position
-    Gamepad& GetGamepad(uint8_t pad) {return gamepad[pad];}                      // return the gamepad state
+    bool  GetKeyState(eKeycode key) { return keystate[key]; }                      // return true if key is pressed
+    bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? mouse.btn[btn] : 0; }     // return true if mouse btn is pressed
+    void  GetMousePos(int16_t& x, int16_t& y) {x = mouse.pos.x; y = mouse.pos.y;}  // return mouse x,y position
+    Gamepad& GetGamepad(uint8_t pad) {return gamepad[pad];}                        // return the gamepad state
 
     bool IsRunning() { return running; }
     uint Width() {return shape.width;}

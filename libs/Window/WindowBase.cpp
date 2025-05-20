@@ -9,8 +9,8 @@
 
 //--Events--
 EventType WindowBase::MouseEvent(eAction action, int16_t x, int16_t y, uint8_t btn) {
-    mousepos = {x, y};
-    if (action != eMOVE) btnstate[btn] = (action == eDOWN);  // Keep track of button state
+    mouse.pos = {x, y};
+    if (action != eMOVE) mouse.btn[btn] = (action == eDOWN);  // Keep track of button state
     EventType e = {EventType::MOUSE, {action, x, y, btn}};
     return e;
 }

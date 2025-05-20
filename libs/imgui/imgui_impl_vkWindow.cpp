@@ -31,8 +31,8 @@ bool ImGui_ImplvkWindow_Init(vkWindow* window) {
     // Setup back-end capabilities flags
     ImGuiIO& io = ImGui::GetIO();
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;         // Gamepad supported
-    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;    // We can honor GetMouseCursor() values (optional)
-    //io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;     // We can honor io.WantSetMousePos requests (optional, rarely used)
+    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;    // We can honor GetMouseCursor() values
+    //io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;     // io.WantSetMousePos requests (Disallowed on Wayland. Not supported on Android. Don't use.)
     io.BackendPlatformName = "imgui_impl_vkWindow";
 
     KeyMap[eKEY_NONE]         = ImGuiKey_None;
