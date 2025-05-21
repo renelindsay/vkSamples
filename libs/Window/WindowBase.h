@@ -128,12 +128,13 @@ protected:
     bool running;
     bool textinput;
     bool has_focus;                                                            // true if window has focus
-    bool resized;
+    bool resized;                                                              // true if window has been resized
+    bool fullscreen;                                                           // true if window is fullscreen
     struct shape_t { int16_t x; int16_t y; uint16_t width; uint16_t height; } shape = {};  // window shape
     std::string clipboard;
 
   public:
-    WindowBase() : running(false), textinput(false), has_focus(false), resized(false){}
+    WindowBase() : running(false), textinput(false), has_focus(false), resized(false), fullscreen(false){}
     virtual ~WindowBase() {}
     virtual void Close() { eventFIFO.push(CloseEvent()); }
 
@@ -151,9 +152,11 @@ protected:
     uint Height(){return shape.height;}
     bool Resized() { bool resize = resized; resized = false; return resize; }
     virtual float GetDisplayScale() {return 1.f;}
+    virtual bool IsFullscreen() {return fullscreen;}
 
-    virtual const char* GetClipboardText() {return clipboard.c_str(); }  // Fallback clipboard. Works only locally.
-    virtual void SetClipboardText(const char* str) { clipboard = str; }  // Platform implementation overrides this.
+    //--Clipboard--
+    virtual const char* GetClipboardText() {return clipboard.c_str(); }  // Fallback implementation works only locally.
+    virtual void SetClipboardText(const char* str) { clipboard = str; }  // Platform implementations overrides this.
 
     //--Control functions--
     virtual void ShowKeyboard(bool enabled);                      // Shows the Android soft-keyboard. //TODO: Enable TextEvent?
@@ -164,6 +167,7 @@ protected:
     virtual const void* GetNativeHandle() const = 0;              // For creating Vulkan/OpenGL Surface
     virtual void ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {}
     virtual void SetCursor(eCursor id) {}
+    virtual void SetFullscreen(bool enable) {}
 
     //--Event loop--
     virtual EventType GetEvent(bool wait_for_event = false) = 0;  // Fetch one event from the queue.

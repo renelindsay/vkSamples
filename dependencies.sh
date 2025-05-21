@@ -1,8 +1,9 @@
 #!/bin/bash
 sudo apt install build-essential ninja-build
 sudo apt install libx11-xcb-dev libxi-dev libxcb-image0-dev libxkbcommon-dev
-sudo apt install libxcb-cursor0 libxcb-cursor-dev
-sudo apt install libevdev-dev
+sudo apt install libxcb-cursor0 libxcb-cursor-dev     # mouse cursors
+sudo apt install libevdev-dev                         # gamepad
+sudo apt install libxcb-icccm4-dev                    # fullscreen
 #sudo apt install libvulkan1 vulkan-tools libvulkan-dev
 
 cd ./libs/vkUtils/Vexel

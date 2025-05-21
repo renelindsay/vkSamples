@@ -12,6 +12,7 @@
 #define ENABLE_XCB_CURSOR  // requires libxcb-cursor-dev
 #define ENABLE_GAMEPAD     // requires libevdev-dev (8kb)
 #define ENABLE_CLIPBOARD
+#define ENABLE_FULLSCREEN  // requires libxcb=icccm4-dev
 
 //-------------------------------------------------
 #include "WindowBase.h"
@@ -34,10 +35,13 @@
 #include <unistd.h>               // gamepad read
 #include <sys/inotify.h>          // gamepad inotify
 #include <dirent.h>               // For scanning the /dev/input/ directory
-
 #include <sys/ioctl.h>
 #include <linux/input.h>
 #include "gamepads.h"
+#endif
+#ifdef ENABLE_FULLSCREEN
+#include <xcb/xcb.h>
+#include <xcb/xcb_icccm.h>
 #endif
 //-------------------------------------------------
 
@@ -101,7 +105,7 @@ class Window_xcb : public WindowBase {
     xcb_connection_t* xcb_connection;  // for XCB
     xcb_screen_t* xcb_screen;
     xcb_window_t xcb_window;
-    xcb_intern_atom_reply_t* atom_wm_delete_window;
+    xcb_atom_t atom_wm_delete_window = XCB_NONE;
     //----xcb_image ----
     xcb_gcontext_t gc=0;
     xcb_pixmap_t   pixmap=0;
@@ -168,6 +172,7 @@ class Window_xcb : public WindowBase {
     bool InitTouch();                                        // Returns false if no touch-device was found.
     EventType TranslateEvent(xcb_generic_event_t* x_event);  // Convert x_event to WSIWindow event
     void Create(const char* title="Window", uint width=640, uint height=480);
+    xcb_atom_t GetAtom(const char* name, bool only_if_exists = false);
 
   public:
     void SetTitle(const char* title);
@@ -184,6 +189,8 @@ class Window_xcb : public WindowBase {
     float GetDisplayScale();
     void ShowImage(uint32_t* buf, uint32_t width, uint32_t height);
     void SetCursor(eCursor id);
+    void SetFullscreen(bool enable);
+    bool IsFullscreen();
 
 #ifdef ENABLE_CLIPBOARD
 private:
@@ -215,6 +222,15 @@ public:
 
 Window_xcb::Window_xcb(const char* title, uint width, uint height) {
     Create(title, width, height);
+}
+
+xcb_atom_t Window_xcb::GetAtom(const char* name, bool only_if_exists) {
+    xcb_intern_atom_cookie_t cookie = xcb_intern_atom(xcb_connection, only_if_exists, strlen(name), name);
+    xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(xcb_connection, cookie, nullptr);
+    if (!reply) return XCB_NONE;
+    xcb_atom_t atom = reply->atom;
+    free(reply);
+    return atom;
 }
 
 void Window_xcb::Create(const char* title, uint width, uint height) {
@@ -269,15 +285,10 @@ void Window_xcb::Create(const char* title, uint width, uint height) {
     xcb_create_window(xcb_connection, XCB_COPY_FROM_PARENT, xcb_window, xcb_screen->root, 0, 0, width, height, 0,
                       XCB_WINDOW_CLASS_INPUT_OUTPUT, xcb_screen->root_visual, value_mask, value_list);
 
-    xcb_intern_atom_cookie_t cookie = xcb_intern_atom(xcb_connection, 1, 12, "WM_PROTOCOLS");
-    xcb_intern_atom_reply_t* reply  = xcb_intern_atom_reply(xcb_connection, cookie, 0);
-
-    //--
-    xcb_intern_atom_cookie_t cookie2 = xcb_intern_atom(xcb_connection, 0, 16, "WM_DELETE_WINDOW");
-    atom_wm_delete_window            = xcb_intern_atom_reply(xcb_connection, cookie2, 0);
-    xcb_change_property(xcb_connection, XCB_PROP_MODE_REPLACE, xcb_window, (*reply).atom, 4, 32, 1, &(*atom_wm_delete_window).atom);
-    //--
-    XFree(reply);
+    xcb_atom_t wm_protocols     = GetAtom("WM_PROTOCOLS", true);
+    xcb_atom_t wm_delete_window = GetAtom("WM_DELETE_WINDOW");
+    xcb_change_property(xcb_connection, XCB_PROP_MODE_REPLACE, xcb_window, wm_protocols, 4, 32, 1, &wm_delete_window);
+    atom_wm_delete_window = wm_delete_window;
 
     //---Keyboard input---
     k_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
@@ -340,7 +351,6 @@ Window_xcb::~Window_xcb() {
     if (watch_fd   != -1) { inotify_rm_watch(inotify_fd, watch_fd); watch_fd=-1;}
     if (inotify_fd != -1) { close(inotify_fd); inotify_fd=-1; }
 #endif
-    XFree(atom_wm_delete_window);
     xcb_disconnect(xcb_connection);
     XFree(k_ctx);  // xkb keyboard
 }
@@ -470,7 +480,7 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
             return KeyEvent(eUP, keycode);                          // key released event
         }
         case XCB_CLIENT_MESSAGE: {                                  // window close event
-            if ((*(xcb_client_message_event_t*)x_event).data.data32[0] == (*atom_wm_delete_window).atom) {
+            if ((*(xcb_client_message_event_t*)x_event).data.data32[0] == atom_wm_delete_window) {
                 LOGI("Closing Window\n");
                 return CloseEvent();
             }
@@ -642,10 +652,72 @@ void Window_xcb::ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {  //
 #endif
 
 
-#ifdef ENABLE_XCB_CURSOR
 void Window_xcb::SetCursor(eCursor id) {
+#ifdef ENABLE_XCB_CURSOR
     xcb_change_window_attributes(xcb_connection, xcb_window, XCB_CW_CURSOR, &cursors[id]);
+#endif
 }
+
+#ifdef ENABLE_FULLSCREEN
+void Window_xcb::SetFullscreen(bool enable) {
+    xcb_atom_t a_wm_state = GetAtom("_NET_WM_STATE");
+    xcb_atom_t a_fullscreen = GetAtom("_NET_WM_STATE_FULLSCREEN");
+
+    if (a_wm_state == XCB_NONE || a_fullscreen == XCB_NONE) return;
+
+    xcb_client_message_event_t ev = {};
+    ev.response_type = XCB_CLIENT_MESSAGE;
+    ev.window = xcb_window;
+    ev.type = a_wm_state;
+    ev.format = 32;
+    ev.data.data32[0] = enable ? 1 : 0;  // _NET_WM_STATE_ADD : _NET_WM_STATE_REMOVE
+    ev.data.data32[1] = a_fullscreen;
+    ev.data.data32[2] = 0;
+    ev.data.data32[3] = 1;  // Normal source indication (application)
+    ev.data.data32[4] = 0;
+
+    xcb_send_event(xcb_connection, 0,
+                   xcb_setup_roots_iterator(xcb_get_setup(xcb_connection)).data->root,
+                   XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY,
+                   reinterpret_cast<const char*>(&ev));
+    xcb_flush(xcb_connection);
+}
+
+bool Window_xcb::IsFullscreen() {
+    xcb_atom_t net_wm_state = GetAtom("_NET_WM_STATE");
+    xcb_atom_t fs_atom = GetAtom("_NET_WM_STATE_FULLSCREEN");
+
+    xcb_get_property_cookie_t prop_cookie = xcb_get_property(
+        xcb_connection,
+        0,
+        xcb_window,
+        net_wm_state,
+        XCB_ATOM_ATOM,
+        0,  // offset
+        1024  // length
+    );
+
+    xcb_get_property_reply_t* prop_reply = xcb_get_property_reply(xcb_connection, prop_cookie, nullptr);
+    if (!prop_reply) return false;
+
+    xcb_atom_t* atoms = (xcb_atom_t*)xcb_get_property_value(prop_reply);
+    int len = xcb_get_property_value_length(prop_reply) / sizeof(xcb_atom_t);
+
+    bool is_fs = false;
+    for (int i = 0; i < len; ++i) {
+        if (atoms[i] == fs_atom) {
+            is_fs = true;
+            break;
+        }
+    }
+
+    free(prop_reply);
+    return is_fs;
+}
+
+
+#else
+    void Window_xcb::SetFullscreen(bool enable){}
 #endif
 
 //---Gamepad---
@@ -999,17 +1071,10 @@ void Window_xcb::SetGamepadRumble(int index, uint16_t weak, uint16_t strong) {  
 
 #ifdef ENABLE_CLIPBOARD
     void Window_xcb::InitClipboard() {
-        auto intern = [&](const char* name) {
-            xcb_intern_atom_cookie_t cookie = xcb_intern_atom(xcb_connection, 0, strlen(name), name);
-            xcb_intern_atom_reply_t* reply = xcb_intern_atom_reply(xcb_connection, cookie, nullptr);
-            xcb_atom_t atom = reply ? reply->atom : XCB_NONE;
-            free(reply);
-            return atom;
-        };
-        atom_CLIPBOARD   = intern("CLIPBOARD");
-        atom_UTF8_STRING = intern("UTF8_STRING");
-        atom_STRING      = intern("STRING");
-        atom_PROPERTY    = intern("XSEL_DATA");
+        atom_CLIPBOARD   = GetAtom("CLIPBOARD");
+        atom_UTF8_STRING = GetAtom("UTF8_STRING");
+        atom_STRING      = GetAtom("STRING");
+        atom_PROPERTY    = GetAtom("XSEL_DATA");
     }
 
     bool Window_xcb::RequestClipboard() {

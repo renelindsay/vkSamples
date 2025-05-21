@@ -66,6 +66,10 @@ int main(int argc, char *argv[]) {
             *pix = (x<<16) + (y<<8) + (rand()&255);
         }
         if (!key_pressed) window.ShowImage(image,256,256);
+
+        // test fullscreen mode
+        if(window.GetKeyState(eKEY_1)) window.SetFullscreen(true);
+        if(window.GetKeyState(eKEY_2)) window.SetFullscreen(false);
     }
     return 0;
 }
