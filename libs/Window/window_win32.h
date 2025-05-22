@@ -10,6 +10,7 @@
 #define ENABLE_MULTITOUCH //1kb
 #define ENABLE_GAMEPAD    //2kb
 #define ENABLE_CLIPBOARD  //1kb
+#define ENABLE_FULLSCREEN
 
 #include "WindowBase.h"
 #include <windowsx.h>  // Mouse
@@ -43,8 +44,10 @@ const unsigned char WIN32_TO_HID[256] = {
 class Window_win32 : public WindowBase {
     HINSTANCE hInstance;
     HWND hWnd;
+    RECT rect;            // Save window rect while in fullscreen mode
+    DWORD style;          // Save window stype while in fullscreen mode
     CMTouch MTouch;       // Multi-Touch device
-    HBITMAP DIB = 0;    // For ShowImage().  Holds image to display.
+    HBITMAP DIB = 0;      // For ShowImage().  Holds image to display.
     HCURSOR cursors[12];  // For mouse cursors
 
     void Create(const char* title="Window", uint width=640, uint height=480);
@@ -70,6 +73,10 @@ public:
     void SetClipboardText(const char* text) override;
     const char* GetClipboardText() override;
 #endif
+#ifdef ENABLE_FULLSCREEN
+    void SetFullscreen(bool enable);
+#endif
+
 };
 //==============================================================
 #endif
@@ -455,8 +462,44 @@ void Window_win32::ReadGamepadEvents() {
         return clipboard.c_str();
     }
 
-#endif
+#endif ENABLE_CLIPBOARD
 //-------------------
+
+#ifdef ENABLE_FULLSCREEN
+    void Window_win32::SetFullscreen(bool enable) {
+        if(enable==fullscreen) return;
+        fullscreen = enable;
+
+        if(enable) {
+            // Save windowed rect and style
+            style = GetWindowLong(hWnd, GWL_STYLE);
+            GetWindowRect(hWnd, &rect);
+
+            // Remove borders and title bar
+            SetWindowLong(hWnd, GWL_STYLE, style & ~(WS_OVERLAPPEDWINDOW));
+
+            // Get monitor dimensions
+            HMONITOR hMonitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+            MONITORINFO mi = { sizeof(mi) };
+            if (GetMonitorInfo(hMonitor, &mi)) {
+                float scale = GetDisplayScale();
+                int x = int(mi.rcMonitor.left / scale);
+                int y = int(mi.rcMonitor.top / scale);
+                int w = int((mi.rcMonitor.right - mi.rcMonitor.left) / scale);
+                int h = int((mi.rcMonitor.bottom - mi.rcMonitor.top) / scale);
+                SetWindowPos(hWnd, HWND_TOP, x, y, w, h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+            }
+        }else{
+            // Restore windowed style and size
+            SetWindowLong(hWnd, GWL_STYLE, style);
+            int x = rect.left;
+            int y = rect.top;
+            int w = rect.right - rect.left;
+            int h = rect.bottom - rect.top;
+            SetWindowPos(hWnd, HWND_NOTOPMOST, x, y, w, h, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+#endif  // ENABLE_FULLSCREEN
 
 #endif  // WINDOW_IMPLEMENTATION
 

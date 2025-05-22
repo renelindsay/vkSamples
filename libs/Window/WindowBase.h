@@ -102,7 +102,6 @@ struct Gamepad {
 struct Mouse {
     struct {int16_t x; int16_t y;}pos = {};                                    // mouse position
     bool btn[6] = {};                                                          // mouse btn state
-    void SetPos(int16_t x, int16_t y);
 };
 //==============================================================
 //======================Window base class=======================
