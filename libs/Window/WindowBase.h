@@ -125,7 +125,6 @@ protected:
 
     float display_scale = 1.f;
     bool running;
-    bool textinput;
     bool has_focus;                                                            // true if window has focus
     bool resized;                                                              // true if window has been resized
     bool fullscreen;                                                           // true if window is fullscreen
@@ -133,7 +132,7 @@ protected:
     std::string clipboard;
 
   public:
-    WindowBase() : running(false), textinput(false), has_focus(false), resized(false), fullscreen(false){}
+    WindowBase() : running(false), has_focus(false), resized(false), fullscreen(false){}
     virtual ~WindowBase() {}
     virtual void Close() { eventFIFO.push(CloseEvent()); }
 
@@ -158,8 +157,7 @@ protected:
     virtual void SetClipboardText(const char* str) { clipboard = str; }  // Platform implementations overrides this.
 
     //--Control functions--
-    virtual void ShowKeyboard(bool enabled);                      // Shows the Android soft-keyboard. //TODO: Enable TextEvent?
-    virtual bool TextInput() { return textinput; }                // Returns true if text input is enabled TODO: Fix this
+    virtual void ShowKeyboard(bool enabled) {}                    // Shows the Android soft-keyboard.
     virtual void SetTitle(const char* title) {}
     virtual void SetWinPos (uint x, uint y) {}
     virtual void SetWinSize(uint w, uint h) {}

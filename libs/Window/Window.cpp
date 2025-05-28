@@ -4,7 +4,6 @@
 #include "window_xcb.h"
 #include "window_win32.h"
 #include "window_android.h"
-#include "Logging.h"
 
 #define FIND_ASSETS_FOLDER
 #ifdef  FIND_ASSETS_FOLDER

@@ -168,7 +168,7 @@ class Window_android : public WindowBase {
         shape.width  = 0;  // width;
         shape.height = 0;  // height;
         running      = true;
-        LOGI("Creating Android-Window...\n");
+        //LOGI("Creating Android-Window...\n");
         app = Android_App;
 
         //---Wait for window to be created AND gain focus---
@@ -609,9 +609,8 @@ class Window_android : public WindowBase {
 
     //--Show / Hide keyboard--
     void ShowKeyboard(bool enabled) {
-        textinput = enabled;
         ::ShowKeyboard(enabled);
-        LOGI("%s keyboard", enabled ? "Show" : "Hide");
+        //LOGI("%s keyboard", enabled ? "Show" : "Hide");
     }
 
     virtual const void* GetNativeHandle() const {return app->window;};

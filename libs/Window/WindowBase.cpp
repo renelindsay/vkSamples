@@ -84,8 +84,6 @@ EventType WindowBase::CloseEvent() {
 }
 //----------
 
-void WindowBase::ShowKeyboard(bool enabled) { textinput = enabled; }
-
 bool WindowBase::ProcessEvents(bool wait_for_event) {
     EventType e = GetEvent(wait_for_event);
     while (e.tag != EventType::NONE) {
