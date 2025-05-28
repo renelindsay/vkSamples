@@ -16,35 +16,27 @@
 */
 
 // NOTE: Window.h MUST be #included BEFORE stdio.h, for printf to work correctly on Android.
+// TODO: Add Wayland support
 
-#ifdef ANDROID
-//#include <native.h>
-#endif
-
-#ifdef WIN32
-  #include <direct.h>
-  #define getcwd _getcwd
-  #define chdir _chdir
-
-  //for MINGW
-  #undef  _WIN32_WINNT
-  #define _WIN32_WINNT 0x0A00
-  #undef  WINVER
-  #define WINVER 0x0A00
-#endif  
-  
-#ifdef LINUX
-  #include <cstdlib>
-  #include <unistd.h>
-#endif
-
-#include "WindowBase.h"
-#include "window_xcb.h"
-#include "window_win32.h"
-#include "window_android.h"
 
 #ifndef CWINDOW_H
 #define CWINDOW_H
+
+#ifdef _WIN32
+#undef  VK_USE_PLATFORM_WIN32_KHR
+#define VK_USE_PLATFORM_WIN32_KHR
+#elif  __ANDROID__
+#undef  VK_USE_PLATFORM_ANDROID_KHR
+#define VK_USE_PLATFORM_ANDROID_KHR
+#elif  __linux__
+#undef  VK_USE_PLATFORM_XCB_KHR
+#define VK_USE_PLATFORM_XCB_KHR
+#endif
+
+//#include "WindowBase.h"
+#include "window_xcb.h"
+#include "window_win32.h"
+#include "window_android.h"
 
 #if defined(VK_USE_PLATFORM_XCB_KHR)
     typedef Window_xcb CWindow;

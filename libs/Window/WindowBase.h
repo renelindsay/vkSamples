@@ -15,7 +15,6 @@
 #include <cstdint>
 #include <string>
 
-#include "Logging.h"
 #include "keycodes.h"
 
 // clang-format off

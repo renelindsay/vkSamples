@@ -35,14 +35,13 @@
     #ifndef VK_USE_PLATFORM_ANDROID_KHR
     #define VK_USE_PLATFORM_ANDROID_KHR
     #endif
-    //#include <native.h>
     #define cTICK "\u2713"
     #define PAUSE
 #elif __LINUX__
     #ifndef VK_USE_PLATFORM_XCB_KHR
     #define VK_USE_PLATFORM_XCB_KHR
     #endif
-    #include <xkbcommon/xkbcommon.h>  // install with: sudo apt-get install libxkbcommon-dev
+    #include <stdio.h>
     #define cTICK "\u2713"
     #define PAUSE
 #endif

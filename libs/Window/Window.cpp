@@ -11,12 +11,12 @@
 // On startup, set the current working directory to
 // the 'assets' folder, to match Android behavior.
 
-#if defined(WIN32) || defined(__LINUX__)
-#ifdef WIN32
+#if !defined(__ANDROID__)
+#ifdef _WIN32
   #include <direct.h>
   #define getcwd _getcwd
   #define chdir _chdir
-#else
+#elif __linux__
   #include <cstdlib>
   #include <unistd.h>
 #endif
@@ -29,11 +29,11 @@ struct InitDir {
         if(err) err = chdir("../../../assets");
 
         char buf[4096] {};
-        LOGI("Current Dir : %s\n", getcwd(buf, 4096));
-        if(err){LOGE("Failed to change CWD to assets folder.\n"); abort();}
+        printf("Current Dir : %s\n", getcwd(buf, 4096));
+        if(err){printf("ERROR: Failed to change CWD to assets folder.\n"); abort();}
     }
 } InitDir;
-#endif
+#endif  // not ANDROID
 
 #endif //FIND_ASSETS_FOLDER
 

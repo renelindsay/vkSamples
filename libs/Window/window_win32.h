@@ -21,6 +21,12 @@
 #define MIN(a,b) ((a<b)?(a):(b))
 #define MAX(a,b) ((a>b)?(a):(b))
 
+//for MINGW
+#undef  _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00  // Windows 10
+#undef  WINVER
+#define WINVER 0x0A00
+
 // Convert native Win32 keyboard scancode to cross-platform USB HID code.
 const unsigned char WIN32_TO_HID[256] = {
       0,  0,  0,  0,  0,  0,  0,  0, 42, 43,  0,  0,  0, 40,  0,  0,    // 16
@@ -94,7 +100,7 @@ void Window_win32::Create(const char* title, uint width, uint height) {
     shape.width  = width;
     shape.height = height;
     running      = true;
-    LOGI("Creating Win32 Window...\n");
+    //printf("Creating Win32 Window...\n");
 
     hInstance = GetModuleHandle(NULL);
 
@@ -243,7 +249,7 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
             }
             case WM_CLOSE: {
                 if(msg.hwnd == hWnd) {
-                    LOGI("WM_CLOSE\n");
+                    //printf("WM_CLOSE\n");
                     if(DIB) {DeleteObject(DIB); DIB=0;}
                     return CloseEvent();
                 }
@@ -301,7 +307,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
             PostMessage(hWnd, WM_CLOSE, 0, 0);  // for OnCloseEvent
             return 0;
         case WM_DESTROY:
-            LOGI("WM_DESTROY\n");
+            //LOGI("WM_DESTROY\n");
             PostQuitMessage(0);
             return 0;
         case WM_PAINT:

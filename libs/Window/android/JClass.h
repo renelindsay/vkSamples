@@ -35,6 +35,7 @@
 #include <string>
 #include <vector>
 #include <assert.h>
+#include <android/log.h>
 #include <android_native_app_glue.h>
 #include "android_fopen.h"
 

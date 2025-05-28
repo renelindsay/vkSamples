@@ -19,7 +19,7 @@
 //#include <xcb/xcb.h>            // XCB only
 //#include <X11/Xlib.h>           // XLib only
 #include <X11/Xlib-xcb.h>         // Xlib + XCB
-#include <xkbcommon/xkbcommon.h>  // Keyboard
+#include <xkbcommon/xkbcommon.h>  // Keyboard   libxkbcommon-dev
 #include <X11/Xresource.h>        // DPI scale
 #include <stdlib.h>               // atof
 #include <assert.h>
@@ -237,7 +237,7 @@ void Window_xcb::Create(const char* title, uint width, uint height) {
     shape.height = height;
     running      = true;
 
-    LOGI("Creating XCB-Window...\n");
+    //printf("Creating XCB-Window...\n");
 
     // --Init Connection-- XCB only
     // int scr;
@@ -399,7 +399,7 @@ bool Window_xcb::InitTouch() {
 #ifdef ENABLE_MULTITOUCH
     int ev, err;
     if (!XQueryExtension(display, "XInputExtension", &xi_opcode, &ev, &err)) {
-        LOGW("XInputExtension not available.\n");
+        printf("WARNING: XInputExtension not available.\n");
         return false;
     }
 
@@ -407,7 +407,7 @@ bool Window_xcb::InitTouch() {
     int major = 2;
     int minor = 3;
     if (XIQueryVersion(display, &major, &minor) != Success) {
-        LOGW("No XI2 support. (%d.%d only)\n", major, minor);
+        printf("WARNING: No XI2 support. (%d.%d only)\n", major, minor);
         return false;
     }
 
@@ -480,7 +480,7 @@ EventType Window_xcb::TranslateEvent(xcb_generic_event_t* x_event) {
         }
         case XCB_CLIENT_MESSAGE: {                                  // window close event
             if ((*(xcb_client_message_event_t*)x_event).data.data32[0] == atom_wm_delete_window) {
-                LOGI("Closing Window\n");
+                //printf("Closing Window\n");
                 return CloseEvent();
             }
             break;
