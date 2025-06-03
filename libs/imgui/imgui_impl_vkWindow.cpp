@@ -26,7 +26,7 @@ static void ImGui_ImplvkWindow_SetClipboardText(void* user_data, const char* tex
 
 bool ImGui_ImplvkWindow_Init(vkWindow* window) {
     g_window = window;
-    g_scale = g_window->GetDisplayScale();
+    g_scale = g_window->GetScale();
 
     // Setup back-end capabilities flags
     ImGuiIO& io = ImGui::GetIO();
@@ -245,8 +245,8 @@ void ImGui_ImplvkWindow_NewFrame() {
 
     // Setup display size (every frame to accommodate for window resizing)
     int w, h;
-    g_scale = g_window->GetDisplayScale();
-    g_window->GetWinSize(w,h);
+    g_scale = g_window->GetScale();
+    g_window->GetWinSize(w, h);
     io.DisplaySize = ImVec2((float)w, (float)h);
     if (w > 0 && h > 0) io.DisplayFramebufferScale = ImVec2(g_scale ,g_scale);
 

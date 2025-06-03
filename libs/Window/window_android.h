@@ -184,13 +184,14 @@ class Window_android : public WindowBase {
                     shape.width  = (uint16_t)ANativeWindow_getWidth (app->window);
                     shape.height = (uint16_t)ANativeWindow_getHeight(app->window);
                     eventFIFO.push(ResizeEvent(shape.width, shape.height));        // post window-resize event
-
+/*
                     //Get device configuration for dp scaling
                     AConfiguration* config = AConfiguration_new();
                     AConfiguration_fromAssetManager(config, app->activity->assetManager);
                     int32_t dpi = AConfiguration_getDensity(config);
                     display_scale = dpi / 160.0;
                     AConfiguration_delete(config);
+*/
                 }
                 if (cmd == APP_CMD_GAINED_FOCUS) eventFIFO.push(FocusEvent(true)); // post focus-event
                 android_app_post_exec_cmd(app, cmd);
@@ -615,7 +616,19 @@ class Window_android : public WindowBase {
 
     virtual const void* GetNativeHandle() const {return app->window;};
 
-    float GetDisplayScale() { return display_scale; }
+    float GetDisplayScale() {
+        if(display_scale>0) return display_scale;
+
+        //Get device configuration for dp scaling
+        AConfiguration* config = AConfiguration_new();
+        AConfiguration_fromAssetManager(config, app->activity->assetManager);
+        int32_t dpi = AConfiguration_getDensity(config);
+        display_scale = dpi / 160.0;
+        AConfiguration_delete(config);
+        printf("display_scale=%f\n", display_scale);
+        return display_scale;
+    }
+
 
     virtual void ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {
         auto& wnd = app->window;

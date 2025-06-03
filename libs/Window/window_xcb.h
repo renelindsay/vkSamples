@@ -364,7 +364,7 @@ void Window_xcb::SetTitle(const char* title) {
 }
 
 void Window_xcb::SetWinPos(uint x, uint y) {
-    float scale = GetDisplayScale();
+    float scale = GetScale();
     x = (uint) (x * scale);
     y = (uint) (y * scale);
     uint values[] = {x, y};
@@ -373,7 +373,7 @@ void Window_xcb::SetWinPos(uint x, uint y) {
 }
 
 void Window_xcb::SetWinSize(uint w, uint h) {
-    float scale = GetDisplayScale();
+    float scale = GetScale();
     w = (uint) (w * scale);
     h = (uint) (h * scale);
     uint values[] = {w, h};
@@ -626,8 +626,8 @@ float Window_xcb::GetDisplayScale() {
         }
     }
     //printf("Monitor DPI: %f\n", dpi);
-    display_scale = dpi / 96.f;
-    return display_scale;
+    //display_scale = dpi / 96.f;
+    return dpi / 96.f;
 }
 
 #ifdef ENABLE_XCB_IMAGE

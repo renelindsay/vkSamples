@@ -57,6 +57,9 @@ class Window_win32 : public WindowBase {
     HCURSOR cursors[12];  // For mouse cursors
 
     void Create(const char* title="Window", uint width=640, uint height=480);
+    void DetectGamepads();
+    void ReadGamepadEvents();
+    void EnableDPIAware();
 public:
     void SetTitle(const char* title);
     void SetWinPos (uint x, uint y);
@@ -71,9 +74,6 @@ public:
     float GetDisplayScale();
     void ShowImage(uint32_t* buf, uint32_t width, uint32_t height);
     void SetCursor(eCursor id);
-
-    void DetectGamepads();
-    void ReadGamepadEvents();
 
 #ifdef ENABLE_CLIPBOARD
     void SetClipboardText(const char* text) override;
@@ -102,6 +102,7 @@ void Window_win32::Create(const char* title, uint width, uint height) {
     running      = true;
     //printf("Creating Win32 Window...\n");
 
+    EnableDPIAware();
     hInstance = GetModuleHandle(NULL);
 
     // Initialize the window class structure:
@@ -157,12 +158,15 @@ Window_win32::~Window_win32() { DestroyWindow(hWnd); }
 void Window_win32::SetTitle(const char* title) { SetWindowText(hWnd, title); }
 
 void Window_win32::SetWinPos(uint x, uint y) {
-    SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
+    float s = GetScale();
+    SetWindowPos(hWnd, NULL, x*s, y*s, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
     if (x != shape.x || y != shape.y) eventFIFO.push(MoveEvent(x, y));  // Trigger window moved event
 }
 
 void Window_win32::SetWinSize(uint w, uint h) {
-    RECT wr = {0, 0, (LONG)w, (LONG)h};
+    float s = GetScale();
+    printf("s=%f\n",s);
+    RECT wr = {0, 0, (LONG)w*s, (LONG)h*s};
     AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);  // Add border size to create desired client area size
     int total_width = wr.right - wr.left;
     int total_height = wr.bottom - wr.top;
@@ -261,7 +265,11 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
                     HDC hDC = BeginPaint(hWnd, &ps);
                     HDC hMemDC = CreateCompatibleDC(hDC);
                     HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemDC, DIB);
-                    BitBlt(hDC, 0, 0, ps.rcPaint.right, ps.rcPaint.bottom, hMemDC, 0, 0, SRCCOPY);
+                    int w = ps.rcPaint.right;
+                    int h = ps.rcPaint.bottom;
+                    float s = GetScale();
+                    //BitBlt(hDC, 0, 0, w, h, hMemDC, 0, 0, SRCCOPY);
+                    StretchBlt(hDC, 0, 0, w*s, h*s, hMemDC, 0, 0, w, h, SRCCOPY);
                     SelectObject(hMemDC, hOldBitmap);
                     DeleteDC(hMemDC);
                     EndPaint(hWnd, &ps);
@@ -506,6 +514,20 @@ void Window_win32::ReadGamepadEvents() {
         }
     }
 #endif  // ENABLE_FULLSCREEN
+
+void Window_win32::EnableDPIAware() {
+    auto user32 = LoadLibraryA("user32.dll");  // Windows 10+
+    if (user32) {
+        using SetDpiAwarenessContext_t = BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT);
+        auto setContext = reinterpret_cast<SetDpiAwarenessContext_t>(
+            GetProcAddress(user32, "SetProcessDpiAwarenessContext"));
+        if (setContext) {
+            setContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+            return;
+        }
+    }
+    SetProcessDPIAware();  // Fallback for Vista / Windows 7
+}
 
 #endif  // WINDOW_IMPLEMENTATION
 

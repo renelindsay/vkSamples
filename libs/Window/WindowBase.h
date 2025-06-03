@@ -122,7 +122,7 @@ protected:
     EventType GPadAxis   (uint8_t pad, uint8_t axis, float val);               // Gamepad axis events
     EventType CloseEvent ();                                                   // Window closing
 
-    float display_scale = 1.f;
+    float display_scale = 0.f;
     bool running;
     bool has_focus;                                                            // true if window has focus
     bool resized;                                                              // true if window has been resized
@@ -137,17 +137,20 @@ protected:
 
     //--State query functions--
     void  GetWinPos  (int16_t& x, int16_t& y) { x = shape.x; y = shape.y; }
-    void  GetWinSize (int16_t& width, int16_t& height) { width = shape.width; height = shape.height; }
-    void  GetWinSize (int32_t& width, int32_t& height) { width = shape.width; height = shape.height; }
+    void  GetWinSize (int16_t& width, int16_t& height) { width = Width(); height = Height(); }
+    void  GetWinSize (int32_t& width, int32_t& height) { width = Width(); height = Height(); }
     bool  GetKeyState(eKeycode key) { return keystate[key]; }                      // return true if key is pressed
     bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? mouse.btn[btn] : 0; }     // return true if mouse btn is pressed
     void  GetMousePos(int16_t& x, int16_t& y) {x = mouse.pos.x; y = mouse.pos.y;}  // return mouse x,y position
     Gamepad& GetGamepad(uint8_t pad) {return gamepad[pad];}                        // return the gamepad state
 
     bool IsRunning() { return running; }
-    uint Width() {return shape.width;}
-    uint Height(){return shape.height;}
+    uint Width() {return shape.width /GetScale();}
+    uint Height(){return shape.height/GetScale();}
     bool Resized() { bool resize = resized; resized = false; return resize; }
+    float GetScale() {return (display_scale>0)? display_scale : GetDisplayScale();}
+    void  SetScale(float val) {display_scale = val;}
+
     virtual float GetDisplayScale() {return 1.f;}
     virtual bool IsFullscreen() {return fullscreen;}
 
