@@ -15,6 +15,7 @@
 #define _DEFAULT_SOURCE 1  // Enables funopen()
 
 #include <cstdio>
+#include <cstring>
 #include <cerrno>
 #include <android/asset_manager.h>
 

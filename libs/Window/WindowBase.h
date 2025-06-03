@@ -10,7 +10,6 @@
 #ifndef WINDOWBASE_H
 #define WINDOWBASE_H
 
-//#include <stdio.h>
 #include <cstring>
 #include <cstdint>
 #include <string>

@@ -39,28 +39,16 @@
 #include <android_native_app_glue.h>
 #include "android_fopen.h"
 
-#define NATIVE_ACTIVITY
+extern android_app* Android_App;
+void android_main(struct android_app* state);
 
-//--------------------------------------Application Entry Point-------------------------------------
-android_app* Android_App = nullptr;  // Android native-activity state
-int main(int argc, char *argv[]);    // Forward declaration of main function
-
-#ifdef  NATIVE_ACTIVITY
-void android_main(struct android_app* state) {
-    Android_App = state;                                             // Pass android app state to window_android.cpp
-    android_fopen_set_asset_manager(state->activity->assetManager);  // Re-direct fopen to read assets from our APK.
-    main(0, nullptr);
-    ANativeActivity_finish(state->activity);
-}
-#endif
-//--------------------------------------------------------------------------------------------------
 //----------------------------------------printf for Android----------------------------------------
 // Uses a 256 byte buffer to allow concatenating multiple printf's onto one log line.
 // The buffer gets flushed when the printf string ends in a '\n', or the buffer is full.
 // Alternative with no concatenation:
 //   #define printf(...)  __android_log_print(ANDROID_LOG_INFO, LOG_TAG,__VA_ARGS__)
 
-struct printBuf {
+inline struct printBuf {
     static const int SIZE = 256;
     char buf[SIZE];
     printBuf() { clear(); }
@@ -71,7 +59,7 @@ struct printBuf {
     void flush() {__android_log_print(ANDROID_LOG_INFO, "Window", "%s", buf); clear();}
 }printBuf;
 
-int printf(const char* format, ...) {  // printf for Android
+inline int printf(const char* format, ...) {  // printf for Android
     char buf[printBuf.SIZE];
     va_list argptr;
     va_start(argptr, format);

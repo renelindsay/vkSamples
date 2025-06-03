@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
-//#include <fstream> // for file_exists
 
 #undef repeat
 #define repeat(COUNT) for(uint32_t i = 0; i < (COUNT); ++i)

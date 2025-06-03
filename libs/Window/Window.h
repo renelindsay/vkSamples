@@ -28,6 +28,7 @@
 #elif  __ANDROID__
 #undef  VK_USE_PLATFORM_ANDROID_KHR
 #define VK_USE_PLATFORM_ANDROID_KHR
+#include "android_fopen.h"
 #elif  __linux__
 #undef  VK_USE_PLATFORM_XCB_KHR
 #define VK_USE_PLATFORM_XCB_KHR

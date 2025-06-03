@@ -50,7 +50,7 @@ const unsigned char ANDROID_TO_HID[256] = {
 //==========================Android=============================
 
 //------------------------ JNI Wrappers ------------------------
-void ShowKeyboard(bool visible, int flags=0) {
+static void ShowKeyboard(bool visible, int flags=0) {
     JInputMethodManager InputMethod;
     JWindow window;
     JView decorView = window.getDecorView();
@@ -62,7 +62,7 @@ void ShowKeyboard(bool visible, int flags=0) {
     }
 }
 
-int GetUnicodeChar(int eventType, int keyCode, int metaState) {
+static int GetUnicodeChar(int eventType, int keyCode, int metaState) {
     JKeyEvent keyEvent(eventType, keyCode);
     return keyEvent.getUnicodeChar(metaState);
 };

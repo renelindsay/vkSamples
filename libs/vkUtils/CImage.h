@@ -13,8 +13,10 @@
 #ifndef CIMAGE_H
 #define CIMAGE_H
 
-#include <stdint.h>
-#include <stdio.h>
+#ifdef ANDROID
+#include "android_fopen.h"
+#endif
+
 #include <malloc.h>
 #include "matrix.h"
 #include "fp16.h"
@@ -70,15 +72,15 @@ struct RGBA {
 // 16bit per channel float (linear)
 struct RGBA16f {
     fp16 R, G, B, A;
-    RGBA16f() : R(0), G(0), B(0), A(1) {};
-    RGBA16f(float r, float g, float b, float a=1) : R(r), G(g), B(b),A(a) {};
+    RGBA16f() : R(0), G(0), B(0), A(1) {}
+    RGBA16f(float r, float g, float b, float a=1) : R(r), G(g), B(b),A(a) {}
     operator uint64_t () {return *(uint64_t*)this;}
 };
 //-------------------------------------------------------------------------------
 // 32bit per channel float (linear)
 struct RGBA32f { 
     float R, G, B, A;
-    RGBA32f(): R(0), G(0), B(0), A(1) {};
+    RGBA32f(): R(0), G(0), B(0), A(1) {}
     RGBA32f(float r, float g, float b, float a=1);
     RGBA32f(RGBA pix);                   // converts sRGB to linear
     RGBA32f(vec4 col);
