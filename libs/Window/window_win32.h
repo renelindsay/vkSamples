@@ -158,15 +158,12 @@ Window_win32::~Window_win32() { DestroyWindow(hWnd); }
 void Window_win32::SetTitle(const char* title) { SetWindowText(hWnd, title); }
 
 void Window_win32::SetWinPos(uint x, uint y) {
-    float s = GetScale();
-    SetWindowPos(hWnd, NULL, x*s, y*s, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
+    SetWindowPos(hWnd, NULL, x, y, 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
     if (x != shape.x || y != shape.y) eventFIFO.push(MoveEvent(x, y));  // Trigger window moved event
 }
 
 void Window_win32::SetWinSize(uint w, uint h) {
-    float s = GetScale();
-    printf("s=%f\n",s);
-    RECT wr = {0, 0, (LONG)w*s, (LONG)h*s};
+    RECT wr = {0, 0, (LONG)w, (LONG)h};
     AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);  // Add border size to create desired client area size
     int total_width = wr.right - wr.left;
     int total_height = wr.bottom - wr.top;
@@ -267,9 +264,9 @@ EventType Window_win32::GetEvent(bool wait_for_event) {
                     HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemDC, DIB);
                     int w = ps.rcPaint.right;
                     int h = ps.rcPaint.bottom;
-                    float s = GetScale();
-                    //BitBlt(hDC, 0, 0, w, h, hMemDC, 0, 0, SRCCOPY);
-                    StretchBlt(hDC, 0, 0, w*s, h*s, hMemDC, 0, 0, w, h, SRCCOPY);
+                    //float s = GetScale();
+                    //StretchBlt(hDC, 0, 0, w*s, h*s, hMemDC, 0, 0, w, h, SRCCOPY);
+                    BitBlt(hDC, 0, 0, w, h, hMemDC, 0, 0, SRCCOPY);
                     SelectObject(hMemDC, hOldBitmap);
                     DeleteDC(hMemDC);
                     EndPaint(hWnd, &ps);

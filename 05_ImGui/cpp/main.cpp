@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
     MainWindow window;                                          // Create a Vulkan window
     window.SetScale(0.0f);                                      // Set Window Scale (0 for system default)
     window.SetTitle("05_imGui");                                // Set the window title
-    window.SetWinSize(640, 480);                                // Set the window size (Desktop)
+    window.SetWinSizeScaled(640, 480);                          // Set the window size (Desktop)
     window.SetWinPos(0, 0);                                     // Set the window position to top-left
     VkSurfaceKHR surface = window.CreateVkSurface(instance);    // Create the Vulkan surface
 

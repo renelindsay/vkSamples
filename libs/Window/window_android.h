@@ -546,9 +546,9 @@ class Window_android : public WindowBase {
         if (!eventFIFO.isEmpty()) return eventFIFO.pop();  // pop message from message queue buffer
 
         int events = 0;
-        struct android_poll_source* source;
+        struct android_poll_source* poll_source;
         int timeoutMillis = wait_for_event ? -1 : 0; // Blocking or non-blocking mode
-        int id = ALooper_pollOnce(timeoutMillis, NULL, &events, (void**)&source);
+        int id = ALooper_pollOnce(timeoutMillis, NULL, &events, (void**)&poll_source);
 
         // if(id>=0) printf("id=%d events=%d, source=%d",id,(int)events, source[0]);
         // if(source) source->process(app, source);
@@ -617,16 +617,14 @@ class Window_android : public WindowBase {
     virtual const void* GetNativeHandle() const {return app->window;};
 
     float GetDisplayScale() {
-        if(display_scale>0) return display_scale;
-
         //Get device configuration for dp scaling
         AConfiguration* config = AConfiguration_new();
         AConfiguration_fromAssetManager(config, app->activity->assetManager);
         int32_t dpi = AConfiguration_getDensity(config);
-        display_scale = dpi / 160.0;
+        float scale = dpi / 160.0;
         AConfiguration_delete(config);
-        printf("display_scale=%f\n", display_scale);
-        return display_scale;
+        //printf("scale=%f\n", scale);
+        return scale;
     }
 
 
@@ -634,7 +632,8 @@ class Window_android : public WindowBase {
         auto& wnd = app->window;
         int w = ANativeWindow_getWidth(wnd);
         int h = ANativeWindow_getHeight(wnd);
-        int s = GetDisplayScale();
+        //int s = GetScale();
+        int s = 1.0;
         //printf("w=%d h=%d  w2=%d h2=%d\n", w,h, width, height);
 
         ANativeWindow_Buffer outbuf;

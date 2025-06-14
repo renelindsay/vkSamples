@@ -364,18 +364,12 @@ void Window_xcb::SetTitle(const char* title) {
 }
 
 void Window_xcb::SetWinPos(uint x, uint y) {
-    float scale = GetScale();
-    x = (uint) (x * scale);
-    y = (uint) (y * scale);
     uint values[] = {x, y};
     xcb_configure_window(xcb_connection, xcb_window, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, values);
     xcb_flush(xcb_connection);
 }
 
 void Window_xcb::SetWinSize(uint w, uint h) {
-    float scale = GetScale();
-    w = (uint) (w * scale);
-    h = (uint) (h * scale);
     uint values[] = {w, h};
     xcb_configure_window(xcb_connection, xcb_window, XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT, values);
     xcb_flush(xcb_connection);

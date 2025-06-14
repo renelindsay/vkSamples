@@ -40,8 +40,11 @@ EventType WindowBase::ResizeEvent(uint16_t width, uint16_t height) {
     this->resized = true;
     shape.width  = width;
     shape.height = height;
+    //float scale = GetScale();
     EventType e  = {EventType::RESIZE};
     e.resize     = {width, height};
+    //e.resize.width = width / scale;
+    //e.resize.height= height/ scale;
     return e;
 }
 

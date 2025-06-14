@@ -135,17 +135,18 @@ protected:
     virtual void Close() { eventFIFO.push(CloseEvent()); }
 
     //--State query functions--
-    void  GetWinPos  (int16_t& x, int16_t& y) { x = shape.x; y = shape.y; }
-    void  GetWinSize (int16_t& width, int16_t& height) { width = Width(); height = Height(); }
-    void  GetWinSize (int32_t& width, int32_t& height) { width = Width(); height = Height(); }
+    //shape_t GetShape (){return shape;}                                             // return window shape in pixels
+    void  GetWinPos  (int16_t& x, int16_t& y) { x = shape.x; y = shape.y; }                      // return window position
+    void  GetWinSize (int16_t& width, int16_t& height) { width = Width(); height = Height(); }   // return window size
+    void  GetWinSize (int32_t& width, int32_t& height) { width = Width(); height = Height(); }   // return window size
     bool  GetKeyState(eKeycode key) { return keystate[key]; }                      // return true if key is pressed
     bool  GetBtnState(uint8_t  btn) { return (btn < 6) ? mouse.btn[btn] : 0; }     // return true if mouse btn is pressed
     void  GetMousePos(int16_t& x, int16_t& y) {x = mouse.pos.x; y = mouse.pos.y;}  // return mouse x,y position
     Gamepad& GetGamepad(uint8_t pad) {return gamepad[pad];}                        // return the gamepad state
 
     bool IsRunning() { return running; }
-    uint Width() {return shape.width /GetScale();}
-    uint Height(){return shape.height/GetScale();}
+    uint Width() {return shape.width; }
+    uint Height(){return shape.height;}
     bool Resized() { bool resize = resized; resized = false; return resize; }
     float GetScale() {return (display_scale>0)? display_scale : GetDisplayScale();}
     void  SetScale(float val) {display_scale = val;}
@@ -166,6 +167,7 @@ protected:
     virtual void ShowImage(uint32_t* buf, uint32_t width, uint32_t height) {}
     virtual void SetCursor(eCursor id) {}
     virtual void SetFullscreen(bool enable) {}
+    void SetWinSizeScaled(uint w, uint h) {float s=GetScale(); SetWinSize(w*s, h*s);}
 
     //--Event loop--
     virtual EventType GetEvent(bool wait_for_event = false) = 0;  // Fetch one event from the queue.
