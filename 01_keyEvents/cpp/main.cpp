@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
     MainWindow window;                                          // Create a window
     window.SetScale(0.0f);                                      // Set Window Scale (0 for system default)
     window.SetTitle("Window : 01_KeyEvents");                   // Set the window title
-    window.SetWinSizeScaled(640, 480);                          // Set the window size (Desktop)
+    window.SetWinSize(640, 480);                                // Set the window size (Desktop)
     window.SetWinPos(0, 0);                                     // Set the window position to top-left
     window.ShowKeyboard(true);                                  // Show soft-keyboard (Android)
 

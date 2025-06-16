@@ -196,8 +196,8 @@ int main(int argc, char *argv[]) {
     //----------------------
 
     // Textures
-    CImage img("Vulkan.png");  //  Load image from file
-    CvkImage vkImg = img;      //  Copy image to GPU memory
+    CImage img("assets/Vulkan.png");  //  Load image from file
+    CvkImage vkImg = img;             //  Copy image to GPU memory
     //CvkImage vkImg(img, VK_FORMAT_R8G8B8A8_SRGB, true);
     // ---------
 
@@ -213,8 +213,8 @@ int main(int argc, char *argv[]) {
     //--
     CPipeline pipeline(renderpass);
     pipeline.shader.MaxDescriptorSets(32);
-    pipeline.shader.LoadVertShader("shaders/spirv/shader_vert.spv");
-    pipeline.shader.LoadFragShader("shaders/spirv/shader_frag.spv");
+    pipeline.shader.LoadVertShader("assets/shaders/spirv/shader_vert.spv");
+    pipeline.shader.LoadFragShader("assets/shaders/spirv/shader_frag.spv");
     pipeline.shader.Bind("ubo", ubo);
     pipeline.shader.Bind("texSampler", vkImg);
 

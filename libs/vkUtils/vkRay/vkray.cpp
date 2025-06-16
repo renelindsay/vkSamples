@@ -173,12 +173,12 @@ VkPipelineLayout VKRay::GetPipelineLayout() {
 
 void VKRay::CreatePipeline() {
     pipeline.Init(gpu, device);
-    pipeline.AddRayGenShader("shaders/spirv/raytrace.rgen.spv");
-    pipeline.AddMissShader  ("shaders/spirv/raytrace.rmiss.spv");
-    pipeline.AddMissShader  ("shaders/spirv/raytrace.2.rmiss.spv");
-    pipeline.AddMissShader  ("shaders/spirv/raytrace.shadow.rmiss.spv");
-    pipeline.AddHitGroup    ("shaders/spirv/raytrace.rchit.spv",0,0);
-    pipeline.AddHitGroup    ("shaders/spirv/raytrace.2.rchit.spv",0,0);
+    pipeline.AddRayGenShader("assets/shaders/spirv/raytrace.rgen.spv");
+    pipeline.AddMissShader  ("assets/shaders/spirv/raytrace.rmiss.spv");
+    pipeline.AddMissShader  ("assets/shaders/spirv/raytrace.2.rmiss.spv");
+    pipeline.AddMissShader  ("assets/shaders/spirv/raytrace.shadow.rmiss.spv");
+    pipeline.AddHitGroup    ("assets/shaders/spirv/raytrace.rchit.spv",0,0);
+    pipeline.AddHitGroup    ("assets/shaders/spirv/raytrace.2.rchit.spv",0,0);
     auto layout = GetPipelineLayout();
     pipeline.Create(layout);
 };

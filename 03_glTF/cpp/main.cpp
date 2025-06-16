@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
     instance.DebugReport.SetFlags(14);                          // Error+Perf+Warning flags
     MainWindow window;                                          // Create a Vulkan window
     window.SetTitle("03_glTF");                                 // Set the window title
-    window.SetWinSize(640, 480);                                // Set the window size (Desktop)
+    window.SetWinSizeScaled(640, 480);                          // Set the window size (Desktop)
     window.SetWinPos(0, 0);                                     // Set the window position to top-left
     VkSurfaceKHR surface = window.CreateVkSurface(instance);    // Create the Vulkan surface
 

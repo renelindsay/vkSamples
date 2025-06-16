@@ -33,6 +33,7 @@ void Scene::Init() {
 
 //#define SKYBOX
 #ifdef  SKYBOX
+#define SKY "assets/Skybox/stormydays/"
     skybox_texture.face[FRONT ].Load(SKY"front.jpg",true);
     skybox_texture.face[BACK  ].Load(SKY"back.jpg" ,true);
     skybox_texture.face[BOTTOM].Load(SKY"down.jpg" ,true);
@@ -45,7 +46,7 @@ void Scene::Init() {
 
 #else
     Timer t1;
-    skybox_texture.LoadPanorama("Skybox/cloudy.hdr");
+    skybox_texture.LoadPanorama("assets/Skybox/cloudy.hdr");
     //skybox_texture.LoadPanorama("Skybox/belfast_sunset_puresky_4k.hdr");
     //skybox_texture.LoadPanorama("Skybox/table_mountain_1_puresky_4k.hdr");
     //skybox_texture.LoadPanorama("Skybox/limpopo_golf_course_4k.hdr");
@@ -67,7 +68,7 @@ void Scene::Init() {
     // model
 #define DAMAGED_HELMET
 #ifdef  DAMAGED_HELMET
-    model.Load("DamagedHelmet/glTF-Binary/DamagedHelmet.glb");
+    model.Load("assets/DamagedHelmet/glTF-Binary/DamagedHelmet.glb");
     //model.Load("DamagedHelmet/glTF/DamagedHelmet.gltf");
     model.matrix.RotateY(90);
     model.matrix.RotateX(-90);

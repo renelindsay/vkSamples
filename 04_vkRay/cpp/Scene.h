@@ -32,14 +32,14 @@ void Scene::Init() {
 
     //--- SKYBOX ---
     CCubemap skybox_texture;
-    skybox_texture.LoadPanorama("Skybox/rooitou_park_4k.hdr");
+    skybox_texture.LoadPanorama("assets/Skybox/rooitou_park_4k.hdr");
     vk_skybox_texture.Data(skybox_texture, VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, true);
 
 //#define SKYBOX
 #ifdef  SKYBOX
-//#define SKY "Skybox/blueskies/"
-//#define SKY "Skybox/miramar/"
-#define SKY "Skybox/stormydays/"
+//#define SKY "assets/Skybox/blueskies/"
+//#define SKY "assets/Skybox/miramar/"
+#define SKY "assets/Skybox/stormydays/"
     skybox_texture.face[FRONT ].Load(SKY"front.jpg",true);
     skybox_texture.face[BACK  ].Load(SKY"back.jpg" ,true);
     skybox_texture.face[BOTTOM].Load(SKY"down.jpg" ,true);
@@ -78,7 +78,7 @@ void Scene::Init() {
     // model
 #define DAMAGED_HELMET
 #ifdef  DAMAGED_HELMET
-    model.Load("DamagedHelmet/glTF-Binary/DamagedHelmet.glb");
+    model.Load("assets/DamagedHelmet/glTF-Binary/DamagedHelmet.glb");
     //model.Load("DamagedHelmet/glTF/DamagedHelmet.gltf");
     model.matrix.RotateY(90);
     model.matrix.RotateX(-90);

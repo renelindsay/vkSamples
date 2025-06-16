@@ -23,14 +23,14 @@ void OffScreen::Init(CQueue& queue) {
     //--- Pipelines ---
     pbr_pipeline.Init(renderpass, 0);
     pbr_pipeline.shader.MaxDescriptorSets(32);
-    pbr_pipeline.shader.LoadVertShader("shaders/spirv/pbr_vert.spv");
-    pbr_pipeline.shader.LoadFragShader("shaders/spirv/pbr_frag.spv");
+    pbr_pipeline.shader.LoadVertShader("assets/shaders/spirv/pbr_vert.spv");
+    pbr_pipeline.shader.LoadFragShader("assets/shaders/spirv/pbr_frag.spv");
     pbr_pipeline.CreateGraphicsPipeline();
 
     sky_pipeline.Init(renderpass, 0);
     sky_pipeline.shader.MaxDescriptorSets(3);
-    sky_pipeline.shader.LoadVertShader("shaders/spirv/sky_vert.spv");
-    sky_pipeline.shader.LoadFragShader("shaders/spirv/sky_frag.spv");
+    sky_pipeline.shader.LoadVertShader("assets/shaders/spirv/sky_vert.spv");
+    sky_pipeline.shader.LoadFragShader("assets/shaders/spirv/sky_frag.spv");
     sky_pipeline.depthStencilState.depthWriteEnable = VK_FALSE;          // Skybox does not modify depth
     sky_pipeline.rasterizer.depthClampEnable = VK_TRUE;                  // Dont clip skybox on farplane
     sky_pipeline.CreateGraphicsPipeline();
