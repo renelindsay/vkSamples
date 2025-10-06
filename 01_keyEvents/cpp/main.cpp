@@ -8,18 +8,19 @@ const char *type[] {"up  ", "down", "move"};  // Action types for mouse, keyboar
 
 //-- EVENT HANDLERS --
 //class MainWindow : public vkWindow {  // With Vulkan (requires vkUtils)
-class MainWindow : public CWindow {  // Without Vulkan
-    void OnMouseEvent (eAction action, int16_t x, int16_t y, uint8_t btn) { printf("Mouse: %s %d x %d Btn:%d\n", type[action], x, y, btn); }
-    void OnTouchEvent (eAction action, float x, float y, uint8_t id) { printf("Touch: %s %.2f x %.2f id:%d\n", type[action], x, y, id); }
-    void OnKeyEvent   (eAction action, eKeycode keycode) { printf("Key: %s keycode:%d\n", type[action], keycode); }
-    void OnTextEvent  (const char *str) { printf("Text: '%s'\n", str); }
-    void OnMoveEvent  (int16_t x, int16_t y) { printf("Window Move: x=%d y=%d\n", x, y); }
-    void OnFocusEvent (bool hasFocus) { printf("Focus: %s\n", hasFocus ? "True" : "False"); }
-    void OnResizeEvent(uint16_t width, uint16_t height) { printf("Window Resize: width=%4d height=%4d\n", width, height); }
-    void OnGPadConnect(uint8_t pad, bool active){ printf("Gamepad %d %s\n", pad, active?"connected":"disconnected"); }
-    void OnGPadButton (uint8_t pad, uint8_t btn, bool down){printf("Gamepad %d button %d %s\n", pad, btn, down?"down":"up");}
-    void OnGPadAxis   (uint8_t pad, uint8_t axis, float val){printf("Gamepad %d axis %d : %.2f\n", pad, axis, val);}
-    void OnCloseEvent () { printf("Window Closing.\n"); }
+class MainWindow : public GWindow {  // Without Vulkan
+    void onMouse      (eAction action, int16_t x, int16_t y, uint8_t btn) { printf("Mouse: %s %d x %d Btn:%d\n", type[action], x, y, btn); }
+    void onTouch      (eAction action, float x, float y, uint8_t id) { printf("Touch: %s %.2f x %.2f id:%d\n", type[action], x, y, id); }
+    void onKey        (eAction action, eKeycode keycode)    { printf("Key: %s keycode:%d\n", type[action], keycode); }
+    void onText       (const char *str)                     { printf("Text: '%s'\n", str); }
+    void onMove       (int16_t x, int16_t y)                { printf("Window Move: x=%d y=%d\n", x, y); }
+    void onFocus      (bool hasFocus)                       { printf("Window Focus: %s\n", hasFocus ? "True" : "False"); }
+    void onResizeEvent(uint16_t width, uint16_t height)     { printf("Window Resize: width=%4d height=%4d\n", width, height); }
+    void onGPadConnect(uint8_t pad, bool active)            { printf("Gamepad %d %s\n", pad, active?"connected":"disconnected"); }
+    void onGPadButton (uint8_t pad, uint8_t btn, bool down) { printf("Gamepad %d button %d %s\n", pad, btn, down?"down":"up");}
+    void onGPadAxis   (uint8_t pad, uint8_t axis, float val){ printf("Gamepad %d axis %d : %.2f\n", pad, axis, val);}
+    void onClose() { printf("Window Closing.\n"); }
+    void onFrame() { static int i; printf("%c\r", "|/-\\"[i++/64%4]); } // spinner
 };
 
 int main(int argc, char *argv[]) {
@@ -31,8 +32,8 @@ int main(int argc, char *argv[]) {
     // fopen uses the Android AssetManager to read from the assets folder.
     // printf prints to the desktop terminal, or the Android logcat.
 
-    FILE* file = fopen("ReadMe.txt", "r"); 
-    if(!file) printf(" File not found: ReadMe.txt\n");
+    FILE* file = fopen("assets/ReadMe.txt", "r");
+    if(!file) printf(" File not found: assets/ReadMe.txt\n");
     if(file) { 
         char line[1024] {}; 
         while(fgets(line, 1024, file)) { 
@@ -48,27 +49,27 @@ int main(int argc, char *argv[]) {
     //instance.DebugReport.SetFlags(14);                        // Select validation-message types (see: VkDebugReportFlagsEXT)
 
     MainWindow window;                                          // Create a window
-    window.SetScale(0.0f);                                      // Set Window Scale (0 for system default)
-    window.SetTitle("Window : 01_KeyEvents");                   // Set the window title
-    window.SetWinSize(640, 480);                                // Set the window size (Desktop)
-    window.SetWinPos(0, 0);                                     // Set the window position to top-left
-    window.ShowKeyboard(true);                                  // Show soft-keyboard (Android)
+    window.setScale(0.0f);                                      // Set Window Scale (0 for system default)
+    window.setTitle("Window : 01_KeyEvents");                   // Set the window title
+    window.setSize(640, 480);                                   // Set the window size (Desktop)
+    window.setPosition(0, 0);                                   // Set the window position to top-left
+    window.showKeyboard(true);                                  // Show soft-keyboard (Android)
 
     //VkSurfaceKHR surface = window.CreateVkSurface(instance);  // Create the Vulkan surface (requires vkUtils)
 
-    while(window.PollEvents()) {                              // Main event loop, runs until window is closed.
-        bool key_pressed = window.GetKeyState(eKEY_LeftShift);
+    while(window.pollEvents()) {                                // Main event loop, runs until window is closed.
+        bool key_pressed = window.getKeyState(eKEY_LeftShift);
         if (key_pressed) printf("LEFT SHIFT PRESSED\r");
 
         for(int y=0;y<256;++y) for(int x=0;x<256;++x) {
             uint32_t* pix = &image[x + y*256];
             *pix = (x<<16) + (y<<8) + (rand()&255);
         }
-        if (!key_pressed) window.ShowImage(image,256,256);
+        if (!key_pressed) window.showImage(image,256,256);
 
-        // test fullscreen mode
-        if(window.GetKeyState(eKEY_1)) window.SetFullscreen(true);
-        if(window.GetKeyState(eKEY_2)) window.SetFullscreen(false);
+        // test fullscreen mode (Desktop only)
+        if(window.getKeyState(eKEY_1)) window.setFullscreen(true);
+        if(window.getKeyState(eKEY_2)) window.setFullscreen(false);
     }
     return 0;
 }

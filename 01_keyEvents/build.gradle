@@ -3,40 +3,44 @@ plugins {
 }
 
 android {
-    namespace 'com.renegade.key_events'
-    compileSdk 33
+    namespace "com.renegade.key_events"
+    compileSdk 36
 
     defaultConfig {
         applicationId "com.renegade.key_events"
-        minSdk 28
-        targetSdk 33
-        versionCode 1
-        versionName "1.0"
+        minSdk = 28
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
         
         externalNativeBuild {
             cmake {
-                cppFlags "-std=c++17"
-                abiFilters "arm64-v8a", "x86_64"
-                arguments '-DANDROID_STL=c++_static'
+                cppFlags += "-std=c++17"
+                abiFilters += ["arm64-v8a", "x86_64"]
+                arguments += ['-DANDROID_STL=c++_static']
             }
         }        
     }
 
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            minifyEnabled = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
         }
     }
     externalNativeBuild {
         cmake {
-            version '3.22.1'
-            path 'CMakeLists.txt'
+            version = "3.22.1"
+            path = "CMakeLists.txt"
         }
     }
     sourceSets {
         main {
-            assets.srcDirs = ['./assets']
+            assets.srcDirs = ["./assets"]
+            
+            //manifest.srcFile = "android/AndroidManifest.xml"
+            //res.srcDirs = ['android/res']
+            //jni.srcDirs = ['src']
         }
     }
 }

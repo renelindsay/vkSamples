@@ -61,4 +61,6 @@ if(ENABLE_IMGUI)
     target_link_libraries(${TARGET_NAME} DearImGui)
 endif()
 
+# Place exe by assets:
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 #=================================================================

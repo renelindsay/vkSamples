@@ -42,7 +42,7 @@ struct fp16 {
 #ifdef USE_SUBNORMALS
 struct fp16 { 
     uint16_t h;
-    fp16() : h() {};
+    fp16() : h() {}
     fp16(float f) {
         uint x = *((uint*)&f);
         uint s = (x>>16)&0x8000;

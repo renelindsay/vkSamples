@@ -21,11 +21,11 @@ class MainWindow : public vkWindow {
 
   public:
     //  window resized
-    void OnResizeEvent(uint16_t width, uint16_t height) {
+    void onResize(uint16_t width, uint16_t height) {
         printf("OnResizeEvent: %d x %d\n", width, height);
     }
     //  change spin with arrow keys
-    void OnKeyEvent(eAction action, eKeycode keycode) {
+    void onKey(eAction action, eKeycode keycode) {
         if(action==eDOWN) {
             if(keycode == eKEY_Left ) dy+=0.1f;
             if(keycode == eKEY_Right) dy-=0.1f;
@@ -35,7 +35,7 @@ class MainWindow : public vkWindow {
     }
 
     //  change spin with mouse drag
-    void OnMouseEvent(eAction action, int16_t x, int16_t y, uint8_t btn) {
+    void onMouse(eAction action, int16_t x, int16_t y, uint8_t btn) {
         if(action==eMOVE && btn==1) { dy = mx - x;  dx = my - y;}
         mx = x; my = y;
 
@@ -44,7 +44,7 @@ class MainWindow : public vkWindow {
         if(action==eDOWN && btn==5) scale *= 1.1f;  //mouse wheel back
     }
     //  change spin with touch screen
-    void OnTouchEvent(eAction action, float x, float y, uint8_t id) {
+    void onTouch(eAction action, float x, float y, uint8_t id) {
         if(id==0) {
             if(action==eMOVE && id==0) { dy = mx - x;  dx = my - y; }
             mx = x; my = y;
@@ -65,9 +65,9 @@ int main(int argc, char *argv[]) {
     CInstance instance(true);                                   // Create a Vulkan Instance
     instance.DebugReport.SetFlags(14);                          // Error+Perf+Warning flags
     MainWindow window;                                          // Create a Vulkan window
-    window.SetTitle("Example: 02_Cube");                        // Set the window title
-    window.SetWinSize(640, 480);                                // Set the window size (Desktop)
-    window.SetWinPos(0, 0);                                     // Set the window position to top-left
+    window.setTitle("Example: 02_Cube");                        // Set the window title
+    window.setSize(640, 480);                                   // Set the window size (Desktop)
+    window.setPosition(0, 0);                                   // Set the window position to top-left
     VkSurfaceKHR surface = window.CreateVkSurface(instance);    // Create the Vulkan surface
 
     CPhysicalDevices gpus(instance);                            // Enumerate GPUs, and their properties
@@ -233,7 +233,7 @@ int main(int argc, char *argv[]) {
 
 
     //--- Main Loop ---
-    while (window.PollEvents()) {  // Main event loop, runs until window is closed.
+    while (window.pollEvents()) {  // Main event loop, runs until window is closed.
         VkExtent2D ext  = swapchain.GetExtent();
         VkRect2D   scissor = {{0, 0}, ext};
         VkViewport viewport = {0, 0, (float)ext.width, (float)ext.height, 0, 1};

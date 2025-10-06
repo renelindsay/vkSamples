@@ -1,5 +1,8 @@
-cmake_minimum_required(VERSION 3.18.1)
+cmake_minimum_required(VERSION 3.22.1)
 project(Window)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(TARGET ${PROJECT_NAME})
     return()  #exit if target already exists
@@ -14,8 +17,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")  #for find_package
     add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
     #add_definitions(-DENABLE_MULTITOUCH)
-    #add_definitions(-DENABLE_XCB_IMAGE)
-    #add_definitions(-DENABLE_XCB_CURSOR)
+    #add_definitions(-DENABLE_SHOWIMAGE)
+    #add_definitions(-DENABLE_CURSOR)
 
     find_package(X11 REQUIRED)
     include_directories(${X11_INCLUDE_DIR})
@@ -29,7 +32,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 
     add_library(${PROJECT_NAME} STATIC ${SRC_LIST})
 
-    # Add LIBEVDEV for Gamepad support (requires package: libevdev_dev)
+    # Add LIBEVDEV for Gamepad support (requires package: libevdev-dev)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(LIBEVDEV REQUIRED libevdev)
     target_include_directories(${PROJECT_NAME} PUBLIC ${LIBEVDEV_INCLUDE_DIRS})  # "/usr/include/libevdev-1.0"
@@ -45,12 +48,13 @@ if(WIN32)
     remove_definitions(-Dnear)
     remove_definitions(-DLoadImage)
     add_library(${PROJECT_NAME} STATIC ${SRC_LIST})
-    target_link_libraries(${PROJECT_NAME} Xinput.lib)    # for Gamepad
+    target_link_libraries(${PROJECT_NAME} xinput)    # for Gamepad
 endif()
 #=================================================================
 #=============================ANDROID=============================
 if(ANDROID)
     message("Platform = ${ANDROID_PLATFORM}")
+    set(CMAKE_ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES ON)  # 16kb page size
     add_definitions(-DVK_USE_PLATFORM_ANDROID_KHR)
 
     # Set path to source files.

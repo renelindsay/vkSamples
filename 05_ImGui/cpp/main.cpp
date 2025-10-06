@@ -27,11 +27,11 @@ class MainWindow : public vkWindow {
 #endif
     uint32_t flags  = 0;
 
-    void OnResizeEvent(uint16_t width, uint16_t height) {
-        printf("OnResizeEvent: %d x %d\n", width, height);
+    void onResize(uint16_t width, uint16_t height) {
+        printf("onResize: %d x %d\n", width, height);
     }
 
-    void OnKeyEvent(eAction action, eKeycode keycode) {
+    void onKey(eAction action, eKeycode keycode) {
 #ifdef ENABLE_IMGUI
         if(im->OnKeyEvent(action, keycode)) return;
 #endif
@@ -51,14 +51,14 @@ class MainWindow : public vkWindow {
         scene->camera.flags = flags;
     }
 
-    void OnTextEvent(const char *str) {
+    void onText(const char *str) {
 #ifdef ENABLE_IMGUI
         if(im->OnTextEvent(str)) return;
 #endif
     }
 
     // mouse drag
-    void OnMouseEvent(eAction action, int16_t x, int16_t y, uint8_t btn) {
+    void onMouse(eAction action, int16_t x, int16_t y, uint8_t btn) {
 #ifdef ENABLE_IMGUI
         if(im->OnMouseEvent(action, x, y, btn)) return;
 #endif
@@ -75,7 +75,7 @@ class MainWindow : public vkWindow {
         if(action==eDOWN && btn==5) scene->camera.orbit_radius *= 1.1f;          // mouse wheel back
     }
     //  touch screen
-    void OnTouchEvent(eAction action, float x, float y, uint8_t id) {
+    void onTouch(eAction action, float x, float y, uint8_t id) {
 #ifdef ENABLE_IMGUI
         if(im->OnTouchEvent(action,x,y,id)) return;
 #endif
@@ -114,7 +114,7 @@ class MainWindow : public vkWindow {
             if(action == eUP) {
                 float dx = std::abs( m_down_x - x);
                 float dy = std::abs( m_down_y - y);
-                if( dx + dy < 10.f) ShowKeyboard(!m_keyboardVisible);
+                if( dx + dy < 10.f) showKeyboard(!m_keyboardVisible);
                 m_keyboardVisible = !m_keyboardVisible;
             }
         }
@@ -134,10 +134,10 @@ int main(int argc, char *argv[]) {
     CInstance instance(true);                                   // Create a Vulkan Instance
     instance.DebugReport.SetFlags(14);                          // Error+Perf+Warning flags
     MainWindow window;                                          // Create a Vulkan window
-    window.SetScale(0.0f);                                      // Set Window Scale (0 for system default)
-    window.SetTitle("05_imGui");                                // Set the window title
-    window.SetWinSizeScaled(640, 480);                          // Set the window size (Desktop)
-    window.SetWinPos(0, 0);                                     // Set the window position to top-left
+    window.setScale(0.0f);                                      // Set Window Scale (0 for system default)
+    window.setTitle("05_imGui");                                // Set the window title
+    window.setSizeScaled(640, 480);                             // Set the window size (Desktop)
+    window.setPosition(0, 0);                                   // Set the window position to top-left
     VkSurfaceKHR surface = window.CreateVkSurface(instance);    // Create the Vulkan surface
 
     CPhysicalDevices gpus(instance);                            // Enumerate GPUs, and their properties
@@ -199,7 +199,7 @@ int main(int argc, char *argv[]) {
     //==============================================
 
     //--- Main Loop ---
-    while (window.ProcessEvents()) {
+    while (window.processEvents()) {
  #ifdef ENABLE_IMGUI
         window.im->NewFrame();
         //window.im->HandleMouse();

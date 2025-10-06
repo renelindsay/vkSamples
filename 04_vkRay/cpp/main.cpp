@@ -25,11 +25,11 @@ class MainWindow : public vkWindow {
 
     bool raytrace = false;
 
-    void OnResizeEvent(uint16_t width, uint16_t height) {
+    void onResize(uint16_t width, uint16_t height) {
         printf("OnResizeEvent: %d x %d\n", width, height);
     }
 
-    void OnKeyEvent(eAction action, eKeycode keycode) {
+    void onKey(eAction action, eKeycode keycode) {
         if(action==eDOWN) {
             if(keycode == eKEY_1) flags = 1;  // diffuse light
             if(keycode == eKEY_2) flags = 2;  // specular light
@@ -50,7 +50,7 @@ class MainWindow : public vkWindow {
     }
 
     // mouse drag
-    void OnMouseEvent(eAction action, int16_t x, int16_t y, uint8_t btn) {
+    void onMouse(eAction action, int16_t x, int16_t y, uint8_t btn) {
         if(action==eMOVE && btn==1) { 
             float dy = x - m_mx;
             float dx = y - m_my;
@@ -64,7 +64,7 @@ class MainWindow : public vkWindow {
         if(action==eDOWN && btn==5) scene->camera.orbit_radius *= 1.1f;          // mouse wheel back
     }
     //  touch screen
-    void OnTouchEvent(eAction action, float x, float y, uint8_t id) {
+    void onTouch(eAction action, float x, float y, uint8_t id) {
         const char *type[] {"up  ", "down", "move"};
         printf("Touch: %s %f x %f id:%d\n", type[action], x, y, id); 
 
@@ -100,7 +100,7 @@ class MainWindow : public vkWindow {
             if(action == eUP) {
                 float dx = std::abs( m_down_x - x);
                 float dy = std::abs( m_down_y - y);
-                if( dx + dy < 10.f) ShowKeyboard(!m_keyboardVisible);
+                if( dx + dy < 10.f) showKeyboard(!m_keyboardVisible);
                 m_keyboardVisible = !m_keyboardVisible;
             }
         }
@@ -118,9 +118,9 @@ int main(int argc, char *argv[]) {
     CInstance instance(true);                                   // Create a Vulkan Instance
     instance.DebugReport.SetFlags(14);                          // Error+Perf+Warning flags
     MainWindow window;                                          // Create a Vulkan window
-    window.SetTitle("04_vkRay");                                // Set the window title
-    window.SetWinSizeScaled(640, 480);                          // Set the window size (Desktop)
-    window.SetWinPos(0, 0);                                     // Set the window position to top-left
+    window.setTitle("04_vkRay");                                // Set the window title
+    window.setSizeScaled(640, 480);                             // Set the window size (Desktop)
+    window.setPosition(0, 0);                                   // Set the window position to top-left
     VkSurfaceKHR surface = window.CreateVkSurface(instance);    // Create the Vulkan surface
 
     CPhysicalDevices gpus(instance);                            // Enumerate GPUs, and their properties
@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
     //==============================================
 
     //--- Main Loop ---
-    while (window.ProcessEvents()) {
+    while (window.processEvents()) {
         if(window.raytrace) {
             rt.Update();
             rt.Render(scene.camera, onscreen.swapchain);
@@ -206,13 +206,13 @@ int main(int argc, char *argv[]) {
         }
         scene.model.matrix.RotateZ(1);
 
-        if(window.GetKeyState(eKEY_S)) {  // 'S': save screenshot
+        if(window.getKeyState(eKEY_S)) {  // 'S': save screenshot
             CvkImage& attachment = onscreen.swapchain.att_images[0];
             //attachment.Read32f().toLDR().Save("frame.png");
             attachment.Read().Save("frame.png");
         }
 
-        if(window.GetKeyState(eKEY_F)) {  //'F': save image from FBO
+        if(window.getKeyState(eKEY_F)) {  //'F': save image from FBO
             offscreen.Bind(scene.camera);
             offscreen.Render();
             offscreen.fbo.ReadImage().Save("fbo.png");

@@ -4,8 +4,12 @@
 // - Duplicates and problematic items were discarded.
 // - Controllers with missing buttons were discarded.
 
-#if defined(__linux__) && !defined(__ANDROID__)
+#if defined(__linux__) && !defined(__ANDROID__)  // Linux, but not Android
 #define LINUX
+#endif
+
+#if !defined(__linux__)  // Not for Win32
+#define GAMEPAD_H
 #endif
 
 #ifndef GAMEPAD_H

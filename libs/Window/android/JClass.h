@@ -34,7 +34,7 @@
 #include <jni.h>
 #include <string>
 #include <vector>
-#include <assert.h>
+#include <cassert>
 #include <android/log.h>
 #include <android_native_app_glue.h>
 #include "android_fopen.h"
@@ -67,7 +67,8 @@ inline int printf(const char* format, ...) {  // printf for Android
     va_end(argptr);
     printBuf += buf;
     size_t len = strlen(buf);
-    if ((len >= printBuf.SIZE - 1) || (buf[len - 1] == '\n')) printBuf.flush();  // flush on
+    if ((len >= printBuf.SIZE - 1) || (buf[len - 1] == '\n')) printBuf.flush();  // flush
+    if (buf[len - 1] == '\r') printBuf.clear();
     return strlen(buf);
 }
 //--------------------------------------------------------------------------------------------------
@@ -287,6 +288,8 @@ public:
     //-----------------------------------------------------------
 };
 
+//------------------------------------------------------------------------------
+
 struct JString : public JClass {
     jstring jstr = nullptr;
     JString(const char* str) { jstr = env->NewStringUTF(str);}
@@ -295,6 +298,8 @@ struct JString : public JClass {
     operator jstring() const {return jstr;}
     std::string toString() {return asString(jstr);}
 };
+
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 
@@ -376,6 +381,8 @@ class JView : public JClass {
 public:
     JView(jobject viewobj) { obj = viewobj; }
     jobject getWindowToken() { return CallObj("getWindowToken", "()Landroid/os/IBinder;"); }
+    //void setSystemUiVisibility(int flags) { CallVoid("setSystemUiVisibility", "(I)V", flags); }
+    //int  getSystemUiVisibility() { return CallInt("getSystemUiVisibility", "()I"); }
 };
 
 class JWindow : public JClass {

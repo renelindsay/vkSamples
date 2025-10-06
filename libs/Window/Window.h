@@ -5,46 +5,34 @@
 *  It provides functions for querying the current state of the window, keyboard,
 *  and mouse. Also, events may be processed via either polling or callbacks.
 *
-*  For polling, use the "GetEvent" function to return one event at a time,
-*  and process, using a case statement.  For an example, see the "ProcessEvents" implementation.
+*  For polling, use the "getEvent" function to return one event at a time,
+*  and process, using a case statement.  For an example, see the "processEvents" implementation.
 *
-*  For callbacks, use the "ProcessEvents" function to dispatch all queued events to their
+*  For callbacks, use the "processEvents" function to dispatch all queued events to their
 *  appropriate event handlers.  To create event handlers, derive your class from Window,
 *  and override the virtual event handler functions. (See WindowBase.h)
 *
 *--------------------------------------------------------------------------
 */
 
-// NOTE: Window.h MUST be #included BEFORE stdio.h, for printf to work correctly on Android.
+// NOTE: GWindow.h MUST be #included BEFORE stdio.h, for printf to work correctly on Android.
 // TODO: Add Wayland support
 
 
 #ifndef CWINDOW_H
 #define CWINDOW_H
 
-#ifdef _WIN32
-#undef  VK_USE_PLATFORM_WIN32_KHR
-#define VK_USE_PLATFORM_WIN32_KHR
-#elif  __ANDROID__
-#undef  VK_USE_PLATFORM_ANDROID_KHR
-#define VK_USE_PLATFORM_ANDROID_KHR
-#include "android_fopen.h"
-#elif  __linux__
-#undef  VK_USE_PLATFORM_XCB_KHR
-#define VK_USE_PLATFORM_XCB_KHR
-#endif
-
-//#include "WindowBase.h"
+#include "config.h"
 #include "window_xcb.h"
 #include "window_win32.h"
 #include "window_android.h"
 
 #if defined(VK_USE_PLATFORM_XCB_KHR)
-    typedef Window_xcb CWindow;
+    typedef Window_xcb GWindow;
 #elif defined(VK_USE_PLATFORM_WIN32_KHR)
-    typedef Window_win32 CWindow;
+    typedef Window_win32 GWindow;
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
-    typedef Window_android CWindow;
+    typedef Window_android GWindow;
 #endif
 
 #endif

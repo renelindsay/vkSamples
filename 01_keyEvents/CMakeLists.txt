@@ -5,8 +5,8 @@ project(KeyEvents VERSION 0.1)
 add_subdirectory(../libs/Window Window)
 #=================================================================
 #============================= SOURCE ============================
-include_directories ( cpp )
-aux_source_directory( cpp SRC_LIST)
+include_directories (cpp)
+aux_source_directory(cpp SRC_LIST)
 #=================================================================
 
 #==============================LINUX==============================
@@ -28,4 +28,8 @@ if(ANDROID)
     add_library(native SHARED ${SRC_LIST})
     target_link_libraries(native Window)
 endif()
+#=================================================================
+#==============================ALL================================
+# Place exe by assets:
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 #=================================================================

@@ -34,3 +34,7 @@ if(ANDROID)
     target_link_libraries(native vkUtils)
 endif()
 #=================================================================
+#==============================ALL================================
+# Place exe by assets:
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
+#=================================================================

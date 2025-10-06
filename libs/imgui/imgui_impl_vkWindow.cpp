@@ -17,22 +17,22 @@ static float g_scale = 1.f;
 static ImGuiKey KeyMap[256]{};
 
 static const char* ImGui_ImplvkWindow_GetClipboardText(void* user_data) {
-    return g_window->GetClipboardText();
+    return g_window->getClipboardText();
 }
 
 static void ImGui_ImplvkWindow_SetClipboardText(void* user_data, const char* text) {
-    g_window->SetClipboardText(text);
+    g_window->setClipboardText(text);
 }
 
 bool ImGui_ImplvkWindow_Init(vkWindow* window) {
     g_window = window;
-    g_scale = g_window->GetScale();
+    g_scale = g_window->getScale();
 
     // Setup back-end capabilities flags
     ImGuiIO& io = ImGui::GetIO();
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;         // Gamepad supported
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;    // We can honor GetMouseCursor() values
-    //io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;     // io.WantSetMousePos requests (Disallowed on Wayland. Not supported on Android. Don't use.)
+    //io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;     // io.WantSetMousePos requests (Not supported on Wayland or Android. Don't use.)
     io.BackendPlatformName = "imgui_impl_vkWindow";
 
     KeyMap[eKEY_NONE]         = ImGuiKey_None;
@@ -230,6 +230,7 @@ float wall_delta_time() {  // returns wall clock time in seconds, since last cal
 */
 
 double wall_delta_time_hires() {  // returns wall clock time in seconds, since last call (nano-second res)
+    using namespace std::chrono;
     static high_resolution_clock::time_point last = high_resolution_clock::now();
     high_resolution_clock::time_point curr = high_resolution_clock::now();
     duration<double> time_span = duration_cast<duration<double>>(curr - last);
@@ -245,8 +246,8 @@ void ImGui_ImplvkWindow_NewFrame() {
 
     // Setup display size (every frame to accommodate for window resizing)
     int w, h;
-    g_scale = g_window->GetScale();
-    g_window->GetWinSize(w, h);
+    g_scale = g_window->getScale();
+    g_window->getSize(w, h);
     io.DisplaySize = ImVec2((float)w, (float)h);
     if (w > 0 && h > 0) io.DisplayFramebufferScale = ImVec2(g_scale ,g_scale);
 
@@ -265,8 +266,9 @@ void ImGui_ImplvkWindow_NewFrame() {
     ofs = ofs % count;
 
     float rate = 0;
-    repeat(120) rate += ftimes[i];
-    rate = rate / 120.f;
+    for (uint32_t i=0; i<count; ++i) rate += ftimes[i];
+    //repeat(120) rate += ftimes[i];
+    rate = rate / float(count);
     rate = 1.f / rate;
     //printf("%f\n", frate);
     //io.ActualFramerate = rate;
@@ -300,13 +302,13 @@ void ImGui_ImplvkWindow_UpdateMouseCursor() {
         case ImGuiMouseCursor_NotAllowed: cursor = eNotAllowed; break;
         default: cursor = eArrow;
     }
-    g_window->SetCursor(cursor);
+    g_window->setCursor(cursor);
 }
 
 void ImGui_ImplvkWindow_UpdateGamepads() {
     ImGuiIO& io = ImGui::GetIO();
     if ((io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad) == 0) return;
-    Gamepad& pad = g_window->GetGamepad(0);
+    Gamepad& pad = g_window->getGamepad(0);
     if(pad.active==false) return;
 
     // Buttons

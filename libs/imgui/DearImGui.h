@@ -111,11 +111,11 @@ public:
 
     bool HandleMouse() { // dont use (no mousewheel)
         int16_t mx, my;
-        window->GetMousePos(mx, my);
+        window->getMousePos(mx, my);
         uint8_t btns = 0;
-        if(window->GetBtnState(1)) btns+=1;
-        if(window->GetBtnState(2)) btns+=2;
-        if(window->GetBtnState(3)) btns+=4;
+        if(window->getBtnState(1)) btns+=1;
+        if(window->getBtnState(2)) btns+=2;
+        if(window->getBtnState(3)) btns+=4;
         ImGui_ImplvkWindow_UpdateMouse(btns, mx, my);
         ImGuiIO& io = ImGui::GetIO();
         return io.WantCaptureMouse;  // return true if imgui handled the mouse event

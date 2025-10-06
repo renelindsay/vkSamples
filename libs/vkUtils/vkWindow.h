@@ -1,13 +1,14 @@
 #ifndef VK_WINDOW_H
 #define VK_WINDOW_H
 
-#include "Validation.h"
+#include "config.h"
+#include "vexel.h"  // VEXEL: https://github.com/renelindsay/Vexel
 #include "Window.h"
 
-class vkWindow : public CWindow {
+class vkWindow : public GWindow {
     VkInstance vkInstance = nullptr;
 protected:
-    VkSurfaceKHR m_vkSurface = nullptr;
+    VkSurfaceKHR vkSurface = nullptr;
 public:
     vkWindow(const char *title="vkWindow", int width=640, int height=480);
     virtual ~vkWindow();
