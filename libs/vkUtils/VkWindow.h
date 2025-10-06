@@ -5,13 +5,13 @@
 #include "vexel.h"  // VEXEL: https://github.com/renelindsay/Vexel
 #include "Window.h"
 
-class vkWindow : public GWindow {
+class VkWindow : public GWindow {
     VkInstance vkInstance = nullptr;
 protected:
     VkSurfaceKHR vkSurface = nullptr;
 public:
-    vkWindow(const char *title="vkWindow", int width=640, int height=480);
-    virtual ~vkWindow();
+    VkWindow(const char *title="VkWindow", int width=640, int height=480);
+    virtual ~VkWindow();
 
     VkSurfaceKHR CreateVkSurface(VkInstance instance);
     bool CanPresent(VkPhysicalDevice gpu, uint32_t queue_family) const;  // Checks if surface can present given queue type.

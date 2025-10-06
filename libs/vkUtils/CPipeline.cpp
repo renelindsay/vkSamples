@@ -2,7 +2,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "CPipeline.h"
-#include "vkWindow.h"
+#include "VkWindow.h"
 
 CPipeline::CPipeline() :device(), renderpass(), graphicsPipeline() {}
 

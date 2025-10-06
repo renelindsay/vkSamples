@@ -1,14 +1,14 @@
 ﻿#pragma warning(disable:4996)  // for fopen
 
 #include "argparse.hpp"
-#include "vkWindow.h"
+#include "VkWindow.h"
 #include "OnScreen.h"
 #include "OffScreen.h"
 #include "Scene.h"
 
 //-- EVENT HANDLERS --
-class MainWindow : public vkWindow {
-    using vkWindow::vkWindow;
+class MainWindow : public VkWindow {
+    using VkWindow::VkWindow;
 
     float m_mx = 0;
     float m_my = 0;

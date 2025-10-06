@@ -1,5 +1,5 @@
 #include "argparse.hpp"
-#include "vkWindow.h"
+#include "VkWindow.h"
 #include "CDevices.h"
 #include "CRenderpass.h"
 #include "Swapchain.h"
@@ -14,8 +14,8 @@ float dy = 0.2f;
 float scale = 1.f;
 
 //-- EVENT HANDLERS --
-class MainWindow : public vkWindow {
-    using vkWindow::vkWindow;
+class MainWindow : public VkWindow {
+    using VkWindow::VkWindow;
     float mx = 0;
     float my = 0;
 

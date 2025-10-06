@@ -1,6 +1,6 @@
 //#include "Logging.h"
 //#include "Validation.h"
-#include "vkWindow.h"
+#include "VkWindow.h"
 
 //----------------------------------------------------------------------
 #ifndef VKERRCHECK
@@ -19,14 +19,14 @@
  #endif
 //----------------------------------------------------------------------
 
-vkWindow::vkWindow(const char *title, int width, int height) : GWindow(title, width, height) {}
+VkWindow::VkWindow(const char *title, int width, int height) : GWindow(title, width, height) {}
 
-vkWindow::~vkWindow() {
+VkWindow::~VkWindow() {
     if(vkSurface) vkDestroySurfaceKHR(vkInstance, vkSurface, nullptr); vkSurface = nullptr;
     LOGI("Vulkan Surface destroyed\n");
 }
 
-VkSurfaceKHR vkWindow::CreateVkSurface(VkInstance instance) {
+VkSurfaceKHR VkWindow::CreateVkSurface(VkInstance instance) {
     if(vkSurface) return vkSurface;
     vkInstance = instance;
 #ifdef WIN32
@@ -73,7 +73,7 @@ VkSurfaceKHR vkWindow::CreateVkSurface(VkInstance instance) {
     return vkSurface;
 }
 
-bool vkWindow::CanPresent(VkPhysicalDevice gpu, uint32_t queue_family) const {
+bool VkWindow::CanPresent(VkPhysicalDevice gpu, uint32_t queue_family) const {
     // If surface was created, use this method
     if(vkSurface) {
         VkBool32 can_present = false;

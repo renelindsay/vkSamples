@@ -4,7 +4,7 @@
 #include "CDevices.h"
 #include "Swapchain.h"
 #include "CRenderpass.h"
-#include "vkWindow.h"
+#include "VkWindow.h"
 
 #include "imgui.h"
 #include "imgui_impl_vkWindow.h"
@@ -16,7 +16,7 @@ class DearImGui {
     VkDescriptorPool descriptorPool = 0;
 public:
     VkInstance instance;
-    vkWindow* window;
+    VkWindow* window;
     VkSampleCountFlagBits samples = VK_SAMPLE_COUNT_1_BIT;
     bool isActive = false;
 

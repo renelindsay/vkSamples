@@ -7,7 +7,7 @@
 const char *type[] {"up  ", "down", "move"};  // Action types for mouse, keyboard and touch-screen.
 
 //-- EVENT HANDLERS --
-//class MainWindow : public vkWindow {  // With Vulkan (requires vkUtils)
+//class MainWindow : public VkWindow {  // With Vulkan (requires vkUtils)
 class MainWindow : public GWindow {  // Without Vulkan
     void onMouse      (eAction action, int16_t x, int16_t y, uint8_t btn) { printf("Mouse: %s %d x %d Btn:%d\n", type[action], x, y, btn); }
     void onTouch      (eAction action, float x, float y, uint8_t id) { printf("Touch: %s %.2f x %.2f id:%d\n", type[action], x, y, id); }

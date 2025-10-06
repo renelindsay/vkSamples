@@ -1,16 +1,15 @@
 # Vulkan Samples
 
-This project contains a set of Vulkan samples, using the Window, vkUtils and Vexel libraries.  
+This project contains a set of Vulkan samples, using the GWindow, vkUtils and Vexel libraries.  
 It builds with QtCreator, Android Studio or MSVC2022.  
 It runs on Windows, Linux and Android.  
 
-The Window library creates the window, and handles Keyboard, Mouse and Touch screen input.  
+The GWindow library creates the window, and handles Keyboard, Mouse, Touchscreen and Gamepad input.  
 The unified API simplifies cross platform development and ensures consistent behavior on all three platforms.  
 
 The Vexel library loads Vulkan functions and extensions... an alternative to vulkan_wrapper or Volk.  
 
 The vkUtils library is an abstraction layer over Vulkan, and uses VMA for memory management.  
-
 
 ## Dependencies:
 
@@ -22,6 +21,7 @@ The vkUtils library is an abstraction layer over Vulkan, and uses VMA for memory
 - ImGui (Remember to pull its git submodule.)
 
 ### Linux:
+
 run dependencies.sh  
 
 ### Windows:
@@ -29,7 +29,6 @@ run dependencies.sh
 Install python3   
 cd ./libs/vkUtils/Vexel   
 python3 vexel_gen.py -dg   
-
 
 # Samples
 
@@ -50,7 +49,6 @@ Mouse-wheel or two-finger-pinch to zoom.
 ![02_cube](02_cube/assets/Screenshot_Linux.png)
 ---
 
-
 ### 03_glTF
 
 Renders a glTF model using PBR.  
@@ -58,7 +56,6 @@ Responds to mouse/touchscreen events to change camera angle and zoom.
 
 ![03_glTF](03_glTF/assets/Screenshot_Linux.png)
 ---
-
 
 ### 04_vkRay
 
@@ -70,14 +67,13 @@ Press space to switch between raster and raytrace mode.
 ![04_vkRay](04_vkRay/assets/Screenshot_Linux.png)
 ---
 
-
 ### 05_ImGui
 
 Renders a glTF model, with imgui menu overlay.  
-Imgui menu responds to mouse events.  
+Imgui menu responds to mouse/keyboard/touchscreen/gamepad events.  
+Mouse pointer icons and clipboard copy/paste work too.  
 Background mouse events adjust camera angle and zoom.  
 This is just 03_glTF, with an ImGui overlay added.  
 
 ![05_ImGui](05_ImGui/assets/Screenshot_Linux.png)
 ---
-

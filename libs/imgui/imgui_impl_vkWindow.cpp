@@ -1,10 +1,10 @@
-// dear imgui: Platform Binding for vkWindow
+// dear imgui: Platform Binding for VkWindow
 //
-// vkWindow is a cross-platform library for creating a window for graphics rendering.
+// VkWindow is a cross-platform library for creating a window for graphics rendering.
 // It provides input event hooks for keyboard, mouse, touch-screen and gamepad events,
 // and works on Windows, Linux and Android. Bring your own graphics renderer. (Vulkan/OpenGL/pixbuf)
 
-#include "vkWindow.h"
+#include "VkWindow.h"
 #include "imgui_impl_vkWindow.h"
 #include "imgui.h"
 #include <chrono>
@@ -12,7 +12,7 @@
 float min(float a, float b) { return a>b?b:a; }
 float max(float a, float b) { return a>b?a:b; }
 
-static vkWindow* g_window = nullptr;
+static VkWindow* g_window = nullptr;
 static float g_scale = 1.f;
 static ImGuiKey KeyMap[256]{};
 
@@ -24,7 +24,7 @@ static void ImGui_ImplvkWindow_SetClipboardText(void* user_data, const char* tex
     g_window->setClipboardText(text);
 }
 
-bool ImGui_ImplvkWindow_Init(vkWindow* window) {
+bool ImGui_ImplvkWindow_Init(VkWindow* window) {
     g_window = window;
     g_scale = g_window->getScale();
 
@@ -180,13 +180,13 @@ void ImGui_ImplvkWindow_UpdateMouse(uint8_t btns, int16_t x, int16_t y) {
     }
 }
 
-void ImGui_ImplvkWindow_ScrollWheel(vkWindow* window, float xoffset, float yoffset) {
+void ImGui_ImplvkWindow_ScrollWheel(VkWindow* window, float xoffset, float yoffset) {
     ImGuiIO& io = ImGui::GetIO();
     io.MouseWheelH += xoffset;
     io.MouseWheel += yoffset;
 }
 
-void ImGui_ImplvkWindow_KeyPressed(vkWindow* window, int keycode, int action) {
+void ImGui_ImplvkWindow_KeyPressed(VkWindow* window, int keycode, int action) {
     ImGuiIO& io = ImGui::GetIO();
     bool down = (action==(int)eDOWN);
     ImGuiKey scancode = KeyMap[keycode];
@@ -198,7 +198,7 @@ void ImGui_ImplvkWindow_KeyPressed(vkWindow* window, int keycode, int action) {
     if((keycode == eKEY_LeftGUI)    ||(keycode == eKEY_RightGUI)    ) io.AddKeyEvent(ImGuiMod_Super, down);
 }
 
-void ImGui_ImplvkWindow_TextInput(vkWindow* window, const char* str) {
+void ImGui_ImplvkWindow_TextInput(VkWindow* window, const char* str) {
     ImGuiIO& io = ImGui::GetIO();
     unsigned int chr = str[0];
     io.AddInputCharacter(chr);
