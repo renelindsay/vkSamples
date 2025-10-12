@@ -7,7 +7,7 @@
 #include "VkWindow.h"
 
 #include "imgui.h"
-#include "imgui_impl_vkWindow.h"
+#include "imgui_impl_gWindow.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_internal.h"
 
@@ -47,7 +47,7 @@ public:
 
         io.Fonts->AddFontDefault();
 
-        ImGui_ImplvkWindow_Init(window);
+        ImGui_ImplgWindow_Init(window);
 
         ImGui_ImplVulkan_InitInfo init_info = {};
         init_info.Instance       = instance;
@@ -70,19 +70,19 @@ public:
         // ImGui Cleanup
         VKERRCHECK(vkDeviceWaitIdle(device));
         ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplvkWindow_Shutdown();
+        ImGui_ImplgWindow_Shutdown();
         ImGui::DestroyContext();
         if(!!descriptorPool) vkDestroyDescriptorPool(device, descriptorPool, NULL);
     }
 
     bool OnKeyEvent(eAction action, eKeycode keycode) {
-        ImGui_ImplvkWindow_KeyPressed(window, keycode, action);
+        ImGui_ImplgWindow_KeyPressed(window, keycode, action);
         ImGuiIO& io = ImGui::GetIO();
         return io.WantCaptureKeyboard; // return true if imgui handled the key event
     }
 
     bool OnTextEvent(const char* str) {
-        ImGui_ImplvkWindow_TextInput(window, str);
+        ImGui_ImplgWindow_TextInput(window, str);
         ImGuiIO& io = ImGui::GetIO();
         return io.WantCaptureKeyboard;
     }
@@ -91,9 +91,9 @@ public:
         static uint8_t btns = 0;
         if(action==eDOWN)  btns |= 1<<(btn-1);
         if(action==eUP  )  btns &= !(1<<(btn-1));
-        ImGui_ImplvkWindow_UpdateMouse(btns, x, y);
-        if(btn == 4) ImGui_ImplvkWindow_ScrollWheel(window, 0, 1.f);
-        if(btn == 5) ImGui_ImplvkWindow_ScrollWheel(window, 0,-1.f);
+        ImGui_ImplgWindow_UpdateMouse(btns, x, y);
+        if(btn == 4) ImGui_ImplgWindow_ScrollWheel(window, 0, 1.f);
+        if(btn == 5) ImGui_ImplgWindow_ScrollWheel(window, 0,-1.f);
         ImGuiIO& io = ImGui::GetIO();
         return io.WantCaptureMouse;  // return true if imgui handled the mouse event
     }
@@ -103,7 +103,7 @@ public:
         if(id==0) {
             if(action==eDOWN) btns = 1;
             if(action==eUP  ) btns = 0;
-            ImGui_ImplvkWindow_UpdateMouse(btns, x, y);
+            ImGui_ImplgWindow_UpdateMouse(btns, x, y);
         }
         ImGuiIO& io = ImGui::GetIO();
         return io.WantCaptureMouse;  // return true if imgui handled the mouse event
@@ -116,14 +116,14 @@ public:
         if(window->getBtnState(1)) btns+=1;
         if(window->getBtnState(2)) btns+=2;
         if(window->getBtnState(3)) btns+=4;
-        ImGui_ImplvkWindow_UpdateMouse(btns, mx, my);
+        ImGui_ImplgWindow_UpdateMouse(btns, mx, my);
         ImGuiIO& io = ImGui::GetIO();
         return io.WantCaptureMouse;  // return true if imgui handled the mouse event
     }
 
     void NewFrame() {
         ImGui_ImplVulkan_NewFrame();
-        ImGui_ImplvkWindow_NewFrame();
+        ImGui_ImplgWindow_NewFrame();
         ImGui::NewFrame();
         isActive = true;
     }

@@ -15,7 +15,7 @@ class MainWindow : public GWindow {  // Without Vulkan
     void onText       (const char *str)                     { printf("Text: '%s'\n", str); }
     void onMove       (int16_t x, int16_t y)                { printf("Window Move: x=%d y=%d\n", x, y); }
     void onFocus      (bool hasFocus)                       { printf("Window Focus: %s\n", hasFocus ? "True" : "False"); }
-    void onResizeEvent(uint16_t width, uint16_t height)     { printf("Window Resize: width=%4d height=%4d\n", width, height); }
+    void onResize     (uint16_t width, uint16_t height)     { printf("Window Resize: width=%4d height=%4d\n", width, height); }
     void onGPadConnect(uint8_t pad, bool active)            { printf("Gamepad %d %s\n", pad, active?"connected":"disconnected"); }
     void onGPadButton (uint8_t pad, uint8_t btn, bool down) { printf("Gamepad %d button %d %s\n", pad, btn, down?"down":"up");}
     void onGPadAxis   (uint8_t pad, uint8_t axis, float val){ printf("Gamepad %d axis %d : %.2f\n", pad, axis, val);}
