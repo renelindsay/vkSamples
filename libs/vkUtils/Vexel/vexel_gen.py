@@ -42,6 +42,9 @@ from requests.exceptions import HTTPError, Timeout, ConnectionError
 Add_vexLoadDevice       = True
 Add_vexLoadDeviceTable  = True
 Add_vexVerifyExtensions = False
+Add_vexResultToString   = True
+
+VkResult = {}
 
 def progress_bar(iteration, total, length=50):
     iteration = min(iteration, total)
@@ -110,10 +113,10 @@ class Proc(object):
         self.type = self.get_type()
 
     def get_type(self):
-        if not self.dispatch:                                               return self.LOADER
-        elif   self.dispatch in ["VkInstance", "VkPhysicalDevice"]:         return self.INSTANCE
-        elif   self.dispatch in ["VkDevice", "VkQueue", "VkCommandBuffer"]: return self.DEVICE
-        else:  print("Warning: Unknown dispatch type: {self.dispatch}")
+        if not self.dispatch:                                                                           return self.LOADER
+        elif   self.dispatch in ["VkInstance", "VkPhysicalDevice"]:                                     return self.INSTANCE
+        elif   self.dispatch in ["VkDevice", "VkQueue", "VkCommandBuffer", "VkExternalComputeQueueNV"]: return self.DEVICE
+        else:  print(f"Warning: Unknown dispatch type: {self.dispatch}")
 
     def __repr__(self):
         return f"Proc(name={repr(self.name)}, dispatch={repr(self.dispatch)})"
@@ -130,6 +133,20 @@ class Extension(object):
             lines.append(f"    {repr(proc)}")
         lines.append("])")
         return "\n".join(lines)
+
+def parse_results(f):
+    global VkResult
+    while True:
+        line = next(f).strip()
+        if line.startswith("}"): break
+        if "=" in line:
+            name, value = line.split("=", 1)
+            name = name.strip()
+            value = value.strip().rstrip(",")  # remove trailing comma
+            try:
+                VkResult[name] = int(value)
+            except ValueError: continue
+    return VkResult
 
 def filter_exts(ext_types):
     filtered = []
@@ -168,6 +185,10 @@ def parse_subheader(filename, ext_guard):
             elif name := search(r'^typedef .+?\*PFN_(vk(?!VoidFunction)\w+).*?\);', line):  # Get proc name
                 disp = search(r'\)\((Vk\w+)', line)         # get dispatch type, if any
                 current_ext.procs.append(Proc(name, disp))  # add proc to list for current extension
+
+            elif "enum VkResult" in line:
+                parse_results(f)
+
     return sub_extensions
 
 def parse_vulkan_h(filename):
@@ -233,6 +254,13 @@ def generate_header(filename):
         // Verify all function pointers are loaded.
         // Warn if any null function pointers are found.
         void vexVerifyExtensions();
+        \n""")
+
+    if Add_vexResultToString:
+        cpp += textwrap.dedent(f"""\
+        // Many Vulkan functions return a VkResult enum code to indicate failure modes.
+        // This converts VkResult to its string representation. (For printing debug messages.)
+        const char* vexResultToString(VkResult err);
         \n""")
 
     prev_guard = None
@@ -373,6 +401,19 @@ def generate_source(filename):
                 cpp += f'    // {ext.name}\n'
                 for proc in ext.procs:
                     cpp += f"    if(!{proc.name}) printf(\"  {proc.name}\\n\");\n"
+        cpp += "}\n"
+
+    if Add_vexResultToString:
+        cpp += "\nconst char* vexResultToString(VkResult err) {\n"
+        cpp += "# define STR(r) case r: return #r\n"
+        cpp += "    switch(err) {\n"
+
+        for name, value in VkResult.items():
+            s = "" if value < 0 else " "
+            cpp += f"        STR({name});".ljust(70) +f"// {s}{value}\n"
+        cpp += '        default: return "UNKNOWN_RESULT";\n'
+        cpp += "    }\n"
+        cpp += "# undef STR\n"
         cpp += "}\n"
 
     cpp += textwrap.dedent("""\n\

@@ -9,77 +9,15 @@ char LAST_CALL[1024]={0};
 
 //-----------------------Error Checking------------------------
 #if !defined(NDEBUG) || defined(ENABLE_LOGGING) || defined(ENABLE_VALIDATION)
-//  In Debug mode, convert a VkResult return value to a string.
-const char* VkResultStr(VkResult err) {
-    switch (err) {
-#define STR(r) case r: return #r
-        STR(VK_SUCCESS);      // 0
-        STR(VK_NOT_READY);    // 1
-        STR(VK_TIMEOUT);      // 2
-        STR(VK_EVENT_SET);    // 3
-        STR(VK_EVENT_RESET);  // 4
-        STR(VK_INCOMPLETE);   // 5
-
-        STR(VK_ERROR_OUT_OF_HOST_MEMORY);     // -1
-        STR(VK_ERROR_OUT_OF_DEVICE_MEMORY);   // -2
-        STR(VK_ERROR_INITIALIZATION_FAILED);  // -3
-        STR(VK_ERROR_DEVICE_LOST);            // -4
-        STR(VK_ERROR_MEMORY_MAP_FAILED);      // -5
-        STR(VK_ERROR_LAYER_NOT_PRESENT);      // -6
-        STR(VK_ERROR_EXTENSION_NOT_PRESENT);  // -7
-        STR(VK_ERROR_FEATURE_NOT_PRESENT);    // -8
-        STR(VK_ERROR_INCOMPATIBLE_DRIVER);    // -9
-        STR(VK_ERROR_TOO_MANY_OBJECTS);       // -10
-        STR(VK_ERROR_FORMAT_NOT_SUPPORTED);   // -11
-        STR(VK_ERROR_FRAGMENTED_POOL);        // -12
-        STR(VK_ERROR_UNKNOWN);                // -13
-
-        STR(VK_ERROR_OUT_OF_POOL_MEMORY);                            // -1000069000
-        STR(VK_ERROR_INVALID_EXTERNAL_HANDLE);                       // -1000072003
-        STR(VK_ERROR_FRAGMENTATION);                                 // -1000161000
-        STR(VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS);                // -1000257000
-
-        STR(VK_ERROR_SURFACE_LOST_KHR);                              // -1000000000
-        STR(VK_ERROR_NATIVE_WINDOW_IN_USE_KHR);                      // -1000000001
-        STR(VK_SUBOPTIMAL_KHR);                                      //  1000001003
-        STR(VK_ERROR_OUT_OF_DATE_KHR);                               // -1000001004
-        STR(VK_ERROR_INCOMPATIBLE_DISPLAY_KHR);                      // -1000003001
-        STR(VK_ERROR_VALIDATION_FAILED_EXT);                         // -1000011001
-        STR(VK_ERROR_INVALID_SHADER_NV);                             // -1000012000
-
-        STR(VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR);                 // -1000023000
-        STR(VK_ERROR_VIDEO_PICTURE_LAYOUT_NOT_SUPPORTED_KHR);        // -1000023001
-        STR(VK_ERROR_VIDEO_PROFILE_OPERATION_NOT_SUPPORTED_KHR);     // -1000023002
-        STR(VK_ERROR_VIDEO_PROFILE_FORMAT_NOT_SUPPORTED_KHR);        // -1000023003
-        STR(VK_ERROR_VIDEO_PROFILE_CODEC_NOT_SUPPORTED_KHR);         // -1000023004
-        STR(VK_ERROR_VIDEO_STD_VERSION_NOT_SUPPORTED_KHR);           // -1000023005
-
-        STR(VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT);  // -1000158000
-        STR(VK_ERROR_NOT_PERMITTED_EXT);                             // -1000174001
-        STR(VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT);           // -1000255000
-        STR(VK_ERROR_INVALID_VIDEO_STD_PARAMETERS_KHR);              // -1000299000
-        STR(VK_ERROR_COMPRESSION_EXHAUSTED_EXT);                     // -1000338000
-
-        STR(VK_THREAD_IDLE_KHR);                                     //  1000268000
-        STR(VK_THREAD_DONE_KHR);                                     //  1000268001
-        STR(VK_OPERATION_DEFERRED_KHR);                              //  1000268002
-        STR(VK_OPERATION_NOT_DEFERRED_KHR);                          //  1000268003
-        STR(VK_PIPELINE_COMPILE_REQUIRED);                           //  1000297000
-        STR(VK_INCOMPATIBLE_SHADER_BINARY_EXT);                      //  1000482000
-#undef STR
-    default: return "UNKNOWN_RESULT";
-    }
-}
-
 void ShowVkResult(VkResult err) {
-    if (err > 0) LOGW("%s \n", VkResultStr(err));  // Print warning
-    if (err < 0) LOGE("%s \n", VkResultStr(err));  // Print error
+    if (err > 0) LOGW("%s \n", vexResultToString(err));  // Print warning
+    if (err < 0) LOGE("%s \n", vexResultToString(err));  // Print error
 }
 #else
 void ShowVkResult(VkResult err) {}
 #endif
 //----------------------------------------------------------------
-// clang-format off
+
 //------------------------------------DEBUG REPORT CALLBACK-----------------------------------
 #ifdef ENABLE_VALIDATION
 

@@ -1,0 +1,11 @@
+[project]
+name = "Vexel"
+version = "0.1.0"
+description = "Download Vulkan headers and generate Vulkan Extension Loader."
+authors = [{ name = "Rene Lindsay" }]
+requires-python = ">=3.8"
+
+dependencies = [
+    "requests"
+]
+
