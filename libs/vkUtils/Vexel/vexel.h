@@ -51,7 +51,7 @@ void vexLoadDeviceTable(VkDevice device, vexDeviceTable* table);
 
 // Many Vulkan functions return a VkResult enum code to indicate failure modes.
 // This converts VkResult to its string representation. (For printing debug messages.)
-const char* vexResultToString(VkResult err);
+const char* VkResultToString(VkResult result);
 
 
 // VK_core_0

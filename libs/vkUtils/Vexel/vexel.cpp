@@ -1628,9 +1628,9 @@ void vexLoadDeviceTable(VkDevice device, vexDeviceTable* table) {
 #undef LOAD_DEVICE_TABLE
 }
 
-const char* vexResultToString(VkResult err) {
+const char* VkResultToString(VkResult result) {
 # define STR(r) case r: return #r
-    switch(err) {
+    switch(result) {
         STR(VK_SUCCESS);                                              //  0
         STR(VK_NOT_READY);                                            //  1
         STR(VK_TIMEOUT);                                              //  2

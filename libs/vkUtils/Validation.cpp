@@ -10,8 +10,8 @@ char LAST_CALL[1024]={0};
 //-----------------------Error Checking------------------------
 #if !defined(NDEBUG) || defined(ENABLE_LOGGING) || defined(ENABLE_VALIDATION)
 void ShowVkResult(VkResult err) {
-    if (err > 0) LOGW("%s \n", vexResultToString(err));  // Print warning
-    if (err < 0) LOGE("%s \n", vexResultToString(err));  // Print error
+    if (err > 0) LOGW("%s \n", VkResultToString(err));  // Print warning
+    if (err < 0) LOGE("%s \n", VkResultToString(err));  // Print error
 }
 #else
 void ShowVkResult(VkResult err) {}

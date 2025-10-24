@@ -82,7 +82,7 @@ However, if you prefer to call vexInitialize() manually, comment out the 'AutoRu
     
     // Many Vulkan functions return a VkResult enum code to indicate failure modes.
     // This converts VkResult to its string representation, for printing debug messages.
-    const char* vexResultToString(VkResult err);
+    const char* VkResultToString(VkResult err);
 ```
 
 ## References and Credits

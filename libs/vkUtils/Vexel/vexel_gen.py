@@ -42,7 +42,7 @@ from requests.exceptions import HTTPError, Timeout, ConnectionError
 Add_vexLoadDevice       = True
 Add_vexLoadDeviceTable  = True
 Add_vexVerifyExtensions = False
-Add_vexResultToString   = True
+Add_VkResultToString    = True
 
 VkResult = {}
 
@@ -256,11 +256,11 @@ def generate_header(filename):
         void vexVerifyExtensions();
         \n""")
 
-    if Add_vexResultToString:
+    if Add_VkResultToString:
         cpp += textwrap.dedent(f"""\
         // Many Vulkan functions return a VkResult enum code to indicate failure modes.
         // This converts VkResult to its string representation. (For printing debug messages.)
-        const char* vexResultToString(VkResult err);
+        const char* VkResultToString(VkResult result);
         \n""")
 
     prev_guard = None
@@ -403,10 +403,10 @@ def generate_source(filename):
                     cpp += f"    if(!{proc.name}) printf(\"  {proc.name}\\n\");\n"
         cpp += "}\n"
 
-    if Add_vexResultToString:
-        cpp += "\nconst char* vexResultToString(VkResult err) {\n"
+    if Add_VkResultToString:
+        cpp += "\nconst char* VkResultToString(VkResult result) {\n"
         cpp += "# define STR(r) case r: return #r\n"
-        cpp += "    switch(err) {\n"
+        cpp += "    switch(result) {\n"
 
         for name, value in VkResult.items():
             s = "" if value < 0 else " "
