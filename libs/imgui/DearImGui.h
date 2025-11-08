@@ -62,7 +62,6 @@ public:
         init_info.ImageCount     = swapchain.info.minImageCount;          //3
         init_info.MSAASamples    = samples;
         ImGui_ImplVulkan_Init(&init_info);
-        ImGui_ImplVulkan_CreateFontsTexture();
         //-----------
     }
 

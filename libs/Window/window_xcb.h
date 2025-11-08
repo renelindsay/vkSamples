@@ -1102,4 +1102,4 @@ void Window_xcb::SetGamepadRumble(int index, uint16_t weak, uint16_t strong) {  
 
 #endif  // VK_USE_PLATFORM_XCB_KHR
 //==============================================================
-#undef Status
+

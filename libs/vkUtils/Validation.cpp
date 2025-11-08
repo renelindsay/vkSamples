@@ -3,9 +3,9 @@
 
 char LAST_CALL[1024]={0};
 
-//#ifdef WIN32
-//struct INITVT{INITVT(){EnableVTMode(); printf("INITVT\n");}}INITVT;
-//#endif
+#ifdef WIN32
+struct INITVT{INITVT(){EnableVTMode();}}INITVT;
+#endif
 
 //-----------------------Error Checking------------------------
 #if !defined(NDEBUG) || defined(ENABLE_LOGGING) || defined(ENABLE_VALIDATION)
