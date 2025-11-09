@@ -13,7 +13,6 @@
 
 class DearImGui {
     VkDevice device;
-    VkDescriptorPool descriptorPool = 0;
 public:
     VkInstance instance;
     VkWindow* window;
@@ -24,43 +23,31 @@ public:
     ~DearImGui(){Destroy();}
 
     void Init(CQueue& graphics_queue, Swapchain& swapchain, CRenderpass& renderpass) {
-        device = graphics_queue.device;
-
-        //---DescriptorPool---
-        VkDescriptorPoolSize pool_sizes[] = {{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },};
-        VkDescriptorPoolCreateInfo pool_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-        pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-        pool_info.maxSets = 1;
-        pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
-        pool_info.pPoolSizes = pool_sizes;
-        VkResult err = vkCreateDescriptorPool(device, &pool_info, NULL, &descriptorPool);
-        VKERRCHECK(err);
-        //--------------------
-
-        //---ImGui---
+        //---Window---
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
         ImGui::StyleColorsDark();
-
         io.Fonts->AddFontDefault();
-
         ImGui_ImplgWindow_Init(window);
-
+        //------------
+        //---Vulkan---
+        device = graphics_queue.device;
         ImGui_ImplVulkan_InitInfo init_info = {};
         init_info.Instance       = instance;
         init_info.PhysicalDevice = graphics_queue.gpu;
         init_info.Device         = graphics_queue.device;
         init_info.QueueFamily    = graphics_queue.family;
         init_info.Queue          = graphics_queue.queue;
-        init_info.DescriptorPool = descriptorPool;
-        init_info.Subpass        = 1;
-        init_info.RenderPass     = renderpass;
+        init_info.DescriptorPool = VK_NULL_HANDLE;
+        init_info.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE;
         init_info.MinImageCount  = swapchain.surface_caps.minImageCount;  //2
         init_info.ImageCount     = swapchain.info.minImageCount;          //3
-        init_info.MSAASamples    = samples;
+        init_info.PipelineInfoMain.RenderPass  = renderpass;
+        init_info.PipelineInfoMain.Subpass     = 1;
+        init_info.PipelineInfoMain.MSAASamples = samples;
         ImGui_ImplVulkan_Init(&init_info);
         //-----------
     }
@@ -71,7 +58,6 @@ public:
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplgWindow_Shutdown();
         ImGui::DestroyContext();
-        if(!!descriptorPool) vkDestroyDescriptorPool(device, descriptorPool, NULL);
     }
 
     bool OnKeyEvent(eAction action, eKeycode keycode) {
