@@ -126,8 +126,7 @@ void ImGui_ImplVulkanH_CreateWindowCommandBuffers(VkPhysicalDevice physical_devi
 
 // Vulkan prototypes for use with custom loaders
 // (see description of IMGUI_IMPL_VULKAN_NO_PROTOTYPES in imgui_impl_vulkan.h)
-//#if defined(VK_NO_PROTOTYPES) && !defined(VOLK_H_)
-#if defined(VK_NO_PROTOTYPES) && !defined(VOLK_H_) && !defined(VEXEL_H)  // (Rene)
+#if defined(VK_NO_PROTOTYPES) && !defined(VOLK_H_)
 #define IMGUI_IMPL_VULKAN_USE_LOADER
 static bool g_FunctionsLoaded = false;
 #else
@@ -1249,7 +1248,7 @@ bool    ImGui_ImplVulkan_LoadFunctions(uint32_t api_version, PFN_vkVoidFunction(
 
 bool    ImGui_ImplVulkan_Init(ImGui_ImplVulkan_InitInfo* info)
 {
-    IM_ASSERT(g_FunctionsLoaded && "Need to call ImGui_ImplVulkan_LoadFunctions() if IMGUI_IMPL_VULKAN_NO_PROTOTYPES or VK_NO_PROTOTYPES are set!");
+    IM_ASSERT(g_FunctionsLoaded && "Need to call cImGui_ImplVulkan_LoadFunctions() if IMGUI_IMPL_VULKAN_NO_PROTOTYPES or VK_NO_PROTOTYPES are set!");
 
     if (info->ApiVersion == 0)
         info->ApiVersion = ImGui_ImplVulkan_GetDefaultApiVersion();
