@@ -40,6 +40,7 @@ if(ANDROID)
 endif()
 #=================================================================
 #===============================ALL===============================
+add_compile_definitions(IMGUI_USER_CONFIG="imgui_config.h")
 target_include_directories(${PROJECT_NAME} PUBLIC .               )
 target_include_directories(${PROJECT_NAME} PUBLIC ./imgui         )
 target_include_directories(${PROJECT_NAME} PUBLIC ./imgui/misc/cpp)

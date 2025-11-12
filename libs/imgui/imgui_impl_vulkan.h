@@ -29,8 +29,8 @@
 #ifndef IMGUI_DISABLE
 #include "imgui.h"      // IMGUI_IMPL_API
 
-#define VOLK_H_    // (Rene) Make ImGui think Volk is loaded,
-#include <vexel.h> // (Rene) so we can use Vexel.
+//#define VOLK_H_    // (Rene) Make ImGui think Volk is loaded,
+//#include <vexel.h> // (Rene) so we can use Vexel.
 
 // [Configuration] in order to use a custom Vulkan function loader:
 // (1) You'll need to disable default Vulkan function prototypes.
