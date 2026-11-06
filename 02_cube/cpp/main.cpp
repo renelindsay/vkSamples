@@ -234,6 +234,11 @@ int main(int argc, char *argv[]) {
 
     //--- Main Loop ---
     while (window.pollEvents()) {  // Main event loop, runs until window is closed.
+
+        uint w = window.width();
+        uint h = window.height();
+        swapchain.SetExtent(w,h);  // for wayland
+
         VkExtent2D ext  = swapchain.GetExtent();
         VkRect2D   scissor = {{0, 0}, ext};
         VkViewport viewport = {0, 0, (float)ext.width, (float)ext.height, 0, 1};

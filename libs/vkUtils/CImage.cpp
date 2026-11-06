@@ -468,7 +468,7 @@ vec3 CImage32f::GetSunVec() {
 */
 ivec2 CImage32f::GetBrightestPixel() {
     float max = 0;
-    ivec2 xy;
+    ivec2 xy = {0,0};
     forXY(width, height) {   // find the brightest point
         float lum = Pixel(x,y).Luminocity();
         if(lum>max) {xy = ivec2(x,y); max = lum;}

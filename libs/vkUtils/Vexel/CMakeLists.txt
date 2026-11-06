@@ -8,7 +8,9 @@ target_include_directories (${LIBRARY_NAME} PUBLIC "vulkan")
 
 #==============================LINUX==============================
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_definitions(-DVK_USE_PLATFORM_XLIB_KHR)
     add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
+    add_definitions(-DVK_USE_PLATFORM_WAYLAND_KHR)
 endif()
 #=================================================================
 #=============================WINDOWS=============================

@@ -31,7 +31,7 @@ VkSurfaceKHR VkWindow::CreateVkSurface(VkInstance instance) {
     vkInstance = instance;
 #ifdef WIN32
     native_handle* hnd = getNativeHandle();
-    VkWin32SurfaceCreateInfoKHR win32_createInfo;
+    VkWin32SurfaceCreateInfoKHR win32_createInfo {};
     win32_createInfo.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     win32_createInfo.pNext     = NULL;
     win32_createInfo.flags     = 0;
@@ -47,13 +47,18 @@ VkSurfaceKHR VkWindow::CreateVkSurface(VkInstance instance) {
     VKERRCHECK(vkCreateAndroidSurfaceKHR(instance, &android_createInfo, NULL, &vkSurface));
 #elif __linux__
     native_handle* hnd = getNativeHandle();
-    VkXcbSurfaceCreateInfoKHR xcb_createInfo;
-    xcb_createInfo.sType      = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-    xcb_createInfo.pNext      = nullptr;
-    xcb_createInfo.flags      = 0;
-    xcb_createInfo.connection = hnd->xcb_connection;
-    xcb_createInfo.window     = hnd->xcb_window;
-    VKERRCHECK(vkCreateXcbSurfaceKHR(instance, &xcb_createInfo, NULL, &vkSurface));
+
+    #ifdef VK_USE_PLATFORM_WAYLAND_KHR
+        VkWaylandSurfaceCreateInfoKHR wayland_createInfo {VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR};
+        wayland_createInfo.display = hnd->display;
+        wayland_createInfo.surface = hnd->surface;
+        VKERRCHECK(vkCreateWaylandSurfaceKHR(instance, &wayland_createInfo, nullptr, &vkSurface));
+    #elif defined(VK_USE_PLATFORM_XCB_KHR)
+        VkXcbSurfaceCreateInfoKHR xcb_createInfo {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
+        xcb_createInfo.connection = hnd->xcb_connection;
+        xcb_createInfo.window     = hnd->xcb_window;
+        VKERRCHECK(vkCreateXcbSurfaceKHR(instance, &xcb_createInfo, nullptr, &vkSurface));
+    #endif
 #else 
     LOGE("Unsupported platform\n");
     return 0;
@@ -77,7 +82,15 @@ bool VkWindow::CanPresent(VkPhysicalDevice gpu, uint32_t queue_family) const {
     return true;  // There's no vkGetPhysicalDeviceAndroidSupportKHR. Just assume all queue families can present
 #elif __linux__
     native_handle* hnd = getNativeHandle();
-    return vkGetPhysicalDeviceXcbPresentationSupportKHR(gpu, queue_family, hnd->xcb_connection, hnd->xcb_screen->root_visual) == VK_TRUE;
+    //return vkGetPhysicalDeviceXcbPresentationSupportKHR(gpu, queue_family, hnd->xcb_connection, hnd->xcb_screen->root_visual) == VK_TRUE;
+
+    #ifdef VK_USE_PLATFORM_WAYLAND_KHR
+        return vkGetPhysicalDeviceWaylandPresentationSupportKHR(gpu, queue_family, hnd->display) == VK_TRUE;
+    #elif defined(VK_USE_PLATFORM_XCB_KHR)
+        return vkGetPhysicalDeviceXcbPresentationSupportKHR(gpu, queue_family, hnd->xcb_connection, hnd->xcb_screen->root_visual) == VK_TRUE;
+    #endif
+
+
 #endif
   //return false;
 }

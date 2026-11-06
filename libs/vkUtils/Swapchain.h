@@ -48,22 +48,23 @@ class Swapchain : public FBO {
 
     void Clear();
     void Init(const CQueue* present_queue, const CQueue* graphics_queue=0);
-    bool SetExtent();
+    void UpdateExtent();
     void Apply();
 public:
     VkSurfaceCapabilitiesKHR surface_caps{};
     VkSwapchainCreateInfoKHR info{};
 
     Swapchain(CRenderpass& renderpass, const CQueue* present_queue, const CQueue* graphics_queue);
-    Swapchain(){};
+    Swapchain(){}
     ~Swapchain();
     void Init(CRenderpass& renderpass, const CQueue* present_queue, const CQueue* graphics_queue);
 
     bool PresentMode(bool no_tearing, bool powersave = IS_ANDROID);            // ANDROID: default to power-save mode (limit to 60fps)
     bool PresentMode(VkPresentModeKHR preferred_mode);                         // If mode is not available, returns false and uses FIFO.
     bool SetFramebufferCount(uint32_t image_count = 2);                        // 2=double-buffer 3=triple-buffer. returns true on success
-    bool Resized() {bool flag = resized; resized = false; return flag;}        // returns true is swapchain resized since last call
+    bool Resized() {bool flag = resized; resized = false; return flag;}        // returns true if swapchain resized since last call
 
+    void SetExtent(uint32_t width, uint32_t height){extent={width,height};}    // for platforms that report UINT32_MAX (Wayland)
     VkExtent2D GetExtent(){return info.imageExtent;}
     void Print();
 

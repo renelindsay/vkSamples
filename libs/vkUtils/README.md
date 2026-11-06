@@ -62,7 +62,7 @@ CBuffers uses AMD's VulkanMemoryAllocator (VMA) to allocate GPU memory for vario
 Use the CRenderpass class, to configure the color/depth/stencil attachments for your render target, as well as subpasses.
 
 ### CFBO
-The CFBO class (Frame Bufer Object) class holds your framebuffer and back-buffers.
+The CFBO class (Frame Buffer Object) class holds your framebuffer and back-buffers.
 Use this as your render target for offscreen rendering.  For on-screen rendering, use CSwapchain instead.
 
 ### CSwapchain

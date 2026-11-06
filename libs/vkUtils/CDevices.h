@@ -70,6 +70,7 @@ class CPhysicalDevice {
 
     operator VkPhysicalDevice() const { return handle; }
     int FindQueueFamily(VkQueueFlags flags, VkSurfaceKHR surface = 0);  // Returns a QueueFamlyIndex, or -1 if none found.
+    bool CanPresent(VkSurfaceKHR surface);                              // Returns true if this physical device can present.
 
     std::vector<VkSurfaceFormatKHR> SurfaceFormats(VkSurfaceKHR surface);     // Returns list of supported surface formats.
     VkFormat FindSurfaceFormat(VkSurfaceKHR surface,                          // Returns first supported format from given list, or VK_FORMAT_UNDEFINED if no match was found.

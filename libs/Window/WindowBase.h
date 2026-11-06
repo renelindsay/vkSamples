@@ -58,14 +58,15 @@ class EventFIFO {
 class CMTouch {
     struct CPointer{bool active; float x; float y;};
     static const int  MAX_POINTERS = 10;  // Max 10 fingers
-    uint32_t touchID [MAX_POINTERS]{};    // finger-id lookup table (PC)
+    uint32_t touchID [MAX_POINTERS]{};    // finger-id lookup table (win32/X11)
     CPointer Pointers[MAX_POINTERS]{};
 
   public:
     int count=0;  // number of active touch-id's (Android only)
     void Clear() { memset(this, 0, sizeof(*this)); }
+    CPointer getPointer(uint8_t id) {return Pointers[id];}
 
-    // Convert desktop-style touch-id's to an android-style finger-id.
+    // Convert desktop-style touch-id's to an android-style finger-id. (Wayland matches Android)
     EventType Event_by_ID(eAction action, float x, float y, uint32_t findval, uint32_t setval) {
         for (uint32_t i = 0; i < MAX_POINTERS; ++i) {  // lookup finger-id
             if (touchID[i] == findval) {
@@ -79,11 +80,9 @@ class CMTouch {
     EventType Event(eAction action, float x, float y, uint8_t id) {
         if (id >= MAX_POINTERS) return {};  // Exit if too many fingers
         CPointer& P                   = Pointers[id];
-        if (action != eMOVE) P.active = (action == eDOWN);
-        P.x                           = x;
-        P.y                           = y;
+        if (action == eUP) P.active=false; else P={true,x,y};
         EventType e                   = {EventType::TOUCH};
-        e.touch                       = {action, x, y, id};
+        e.touch                       = {action, P.x, P.y, id};
         return e;
     }
 };
@@ -105,7 +104,7 @@ struct Mouse {
  struct native_handle;
 //======================Window base class=======================
 class WindowBase {
-protected:
+  protected:
     Mouse mouse;                                                               // mouse state
     bool keystate[256] = {};                                                   // keyboard state
     Gamepad gamepad[MAX_GAMEPADS];                                             // gamepad state
@@ -122,7 +121,7 @@ protected:
     EventType gpadAxis   (uint8_t pad, uint8_t axis, float val);               // Gamepad axis events
     EventType closeEvent ();                                                   // Window closing
 
-    float display_scale = 0.f;
+    float scale_override = 0.f;
     bool running;
     bool has_focus;                                                            // true if window has focus
     bool is_resized;                                                           // true if window has been resized
@@ -149,8 +148,8 @@ protected:
     uint width() {return shape.width; }
     uint height(){return shape.height;}
     bool resized() { bool resize = is_resized; is_resized = false; return resize; }
-    float getScale() {return (display_scale>0)? display_scale : getDisplayScale();}
-    void  setScale(float val) {display_scale = val;}
+    float getScale() {return (scale_override>0)? scale_override : getDisplayScale();}
+    void  setScale(float val=0) {scale_override = val;}
 
     virtual float getDisplayScale() {return 1.f;}
     virtual bool isFullscreen() {return fullscreen;}

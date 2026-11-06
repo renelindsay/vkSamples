@@ -83,7 +83,7 @@ void Swapchain::Init(const CQueue* present_queue, const CQueue* graphics_queue) 
     
     info.compositeAlpha = (surface_caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR) ?
                            VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR : VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    SetExtent();  // also initializes surface_caps
+    UpdateExtent();  // also initializes surface_caps
 
     auto* att = renderpass->GetDepthAttachment();
     if(att) depth_buffer.SetSize(extent, att->format, att->samples);
@@ -96,18 +96,21 @@ bool operator==(const VkExtent2D& lhs, const VkExtent2D& rhs) {
     return lhs.width == rhs.width && lhs.height == rhs.height;
 }
 
-bool Swapchain::SetExtent() {  // Fit image extent to window size
+//void CSwapchain::SetExtent(uint32_t width, uint32_t height) { //provide width,height, in case its not available from surface
+void Swapchain::UpdateExtent() {  // Fit image extent to window size
     VKERRCHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &surface_caps));
     VkExtent2D& curr = surface_caps.currentExtent;  // surface extent
     VkExtent2D& ext = info.imageExtent;             // swapchain extent
-    if (ext==curr) return false;
-    if (!curr.width) return false;                  // Allow Minimize on Windows
-    if (!curr.height) return false;                 // Allow Minimize on Windows
-    //printf("swapchain: w=%d h=%d curr_w=%d curr_h=%d\n", ext.width, ext.height, curr.width, curr.height);
-    extent = ext = curr;
+    if (ext==curr) return;                          // extent unchanged
+    if (!curr.width || !curr.height) return;        // Allow Minimize on Windows
+    if (curr.width == UINT32_MAX) curr = extent;    // On Wayland, surface extent is not available.  Use SetExtent instead.
+    ext = curr;
+    //auto clamp =[](uint32_t val, uint32_t min, uint32_t max){ return (val < min ? min : val > max ? max : val); };
+    //ext.width  = clamp(ext.width,  surface_caps.minImageExtent.width,  surface_caps.maxImageExtent.width);
+    //ext.height = clamp(ext.height, surface_caps.minImageExtent.height, surface_caps.maxImageExtent.height);
+    extent = ext;
     resized = true;
     if (!!swapchain) Apply();
-    return true;
 }
 
 bool Swapchain::SetFramebufferCount(uint32_t image_count) {  // set number of framebuffers. (2 or 3). Return true on success.
@@ -296,7 +299,7 @@ void Swapchain::Apply() {
 
 FrameBuffer& Swapchain::AcquireNext() {
     ASSERT(!is_acquired, "CSwapchain: Previous swapchain buffer has not yet been presented.\n");
-    while(SetExtent()){}
+    UpdateExtent();
 
     // Acquire next image
     uint32_t prev = acquired_index;

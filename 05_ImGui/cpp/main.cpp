@@ -137,12 +137,13 @@ int main(int argc, char *argv[]) {
     window.setScale(0.0f);                                      // Set Window Scale (0 for system default)
     window.setTitle("05_imGui");                                // Set the window title
     window.setSizeScaled(640, 480);                             // Set the window size (Desktop)
-    window.setPosition(0, 0);                                   // Set the window position to top-left
+    //window.setPosition(0, 0);                                   // Set the window position to top-left (Win32/XCB only)
     VkSurfaceKHR surface = window.CreateVkSurface(instance);    // Create the Vulkan surface
 
     CPhysicalDevices gpus(instance);                            // Enumerate GPUs, and their properties
     //CPhysicalDevice* gpu = gpus.FindPresentable(surface);       // Find which GPU, can present to the given surface.
     CPhysicalDevice* gpu = &gpus[gpuid];
+    if(!gpu->CanPresent(surface)){LOGE("This GPU can't present.\n"); exit(1);}
 
     gpus.Print();        // List the available GPUs.
     if (!gpu) return 0;  // Exit if no devices can present to the given surface.
@@ -200,6 +201,7 @@ int main(int argc, char *argv[]) {
 
     //--- Main Loop ---
     while (window.processEvents()) {
+        onscreen.swapchain.SetExtent(window.width(),window.height());  // for wayland
  #ifdef ENABLE_IMGUI
         window.im->NewFrame();
         //window.im->HandleMouse();

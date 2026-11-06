@@ -13,9 +13,6 @@
 #endif
 
 #ifdef _WIN32
-    #ifndef VK_USE_PLATFORM_WIN32_KHR
-    #define VK_USE_PLATFORM_WIN32_KHR
-    #endif
     #undef near
     #undef far
     #undef LoadImage
@@ -32,15 +29,9 @@
     #define cTICK "\xFB" /* On Windows, use Square-root as tick mark */
     #define PAUSE system("pause")
 #elif __ANDROID__
-    #ifndef VK_USE_PLATFORM_ANDROID_KHR
-    #define VK_USE_PLATFORM_ANDROID_KHR
-    #endif
     #define cTICK "\u2713"
     #define PAUSE
 #elif __LINUX__
-    #ifndef VK_USE_PLATFORM_XCB_KHR
-    #define VK_USE_PLATFORM_XCB_KHR
-    #endif
     #include <stdio.h>
     #define cTICK "\u2713"
     #define PAUSE

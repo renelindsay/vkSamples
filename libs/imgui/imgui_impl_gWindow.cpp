@@ -9,8 +9,8 @@
 #include "imgui.h"
 #include <chrono>
 
-float min(float a, float b) { return a>b?b:a; }
-float max(float a, float b) { return a>b?a:b; }
+static float minf(float a, float b) { return a>b?b:a; }
+static float maxf(float a, float b) { return a>b?a:b; }
 
 static GWindow* g_window = nullptr;
 static float g_scale = 1.f;
@@ -30,6 +30,8 @@ bool ImGui_ImplgWindow_Init(GWindow* window) {
 
     // Setup back-end capabilities flags
     ImGuiIO& io = ImGui::GetIO();
+    io.DisplayFramebufferScale = ImVec2(g_scale ,g_scale);
+
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;         // Gamepad supported
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;    // We can honor GetMouseCursor() values
     //io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;     // io.WantSetMousePos requests (Not supported on Wayland or Android. Don't use.)
@@ -248,11 +250,12 @@ void ImGui_ImplgWindow_NewFrame() {
     g_scale = g_window->getScale();
     g_window->getSize(w, h);
     io.DisplaySize = ImVec2((float)w, (float)h);
+#ifndef __linux__  // On Wayland, DONT rescale when moving between displays with different scales.
     if (w > 0 && h > 0) io.DisplayFramebufferScale = ImVec2(g_scale ,g_scale);
-
-    //float delta =  max(cpu_delta_time(), 0.0001);
-    //float delta =  max(wall_delta_time(), 0.0001);
-    float delta =  max((float)wall_delta_time_hires(), 0.0001f);
+#endif
+    //float delta =  maxf(cpu_delta_time(), 0.0001);
+    //float delta =  maxf(wall_delta_time(), 0.0001);
+    float delta =  maxf((float)wall_delta_time_hires(), 0.0001f);
 
     io.DeltaTime = delta;
     //printf("%f\n", delta);

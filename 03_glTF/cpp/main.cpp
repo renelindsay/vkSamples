@@ -170,6 +170,9 @@ int main(int argc, char *argv[]) {
 
     //--- Main Loop ---
     while (window.processEvents()) {
+        uint w = window.width();
+        uint h = window.height();
+        onscreen.swapchain.SetExtent(w,h);
         onscreen.Bind(scene.camera);
         onscreen.Render();
 

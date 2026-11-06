@@ -66,7 +66,7 @@ public:
     std::vector<CvkImage> att_images;  // additional attachments, besides the depth and present buffers
 
     FBO(CRenderpass& renderpass, const CQueue* graphics_queue);
-    FBO(){};
+    FBO(){}
     ~FBO();
     void Init(CRenderpass& renderpass, const CQueue* graphics_queue);
     bool SetFramebufferCount(uint32_t count=2);       // 2=double-buffer 3=triple-buffer. returns true on success
@@ -76,11 +76,11 @@ public:
     FrameBuffer& CurrBuffer() {return buffers[acquired_index];}  // buffer being rendered
     FrameBuffer& PrevBuffer() {return buffers[rendered_index];}  // last rendered buffer
 
-    //-----Simple interface-----
+    //-----Simple interface-----         // Single renderpass only
     VkCommandBuffer BeginFrame();        // Get next cmd buffer and start recording commands
     void EndFrame();                     // End the renderpass and present
     //--------------------------
-    //----Flexible interface----
+    //----Flexible interface----         // For multi-pass rendering
     virtual FrameBuffer& AcquireNext();  // Acquires next frame buffer
     VkCommandBuffer BeginCmd();          // Begin recording command buffer
     void BeginRenderpass();              // Begin the renderpass

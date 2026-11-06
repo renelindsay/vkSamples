@@ -32,6 +32,10 @@ int CPhysicalDevice::FindQueueFamily(VkQueueFlags flags, VkSurfaceKHR surface){
     return -1;
 }
 
+bool CPhysicalDevice::CanPresent(VkSurfaceKHR surface) {
+    return FindQueueFamily(0, surface) >= 0;
+}
+
 std::vector<VkSurfaceFormatKHR> CPhysicalDevice::SurfaceFormats(VkSurfaceKHR surface) {  // Get Surface format list
     std::vector<VkSurfaceFormatKHR> formats;
     uint32_t count = 0;
@@ -149,8 +153,9 @@ void CPhysicalDevices::Init(const VkInstance instance) {
 
 CPhysicalDevice* CPhysicalDevices::FindPresentable(VkSurfaceKHR surface) {
     for (auto& gpu : gpu_list)
-        if (gpu.FindQueueFamily(0, surface) >= 0 ) return &gpu;
-    LOGW("No devices can present to this surface. (Is DRI3 enabled?)\n");
+        //if (gpu.FindQueueFamily(0, surface) >= 0 ) return &gpu;
+        if (gpu.CanPresent(surface)) return &gpu;
+    LOGW("No devices can present to this surface.\n");
     return nullptr;
 }
 

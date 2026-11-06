@@ -12,7 +12,8 @@
 //#define ENABLE_CLIPBOARD  //1kb
 //#define ENABLE_SHOWIMAGE
 //#define ENABLE_FULLSCREEN
-#define ENABLE_CURSOR
+//#define ENABLE_CURSOR
+//#define ENABLE_DPIAWARE
 
 #include "WindowBase.h"
 #include <windowsx.h>  // Mouse
@@ -78,7 +79,7 @@ public:
     Window_win32(const char* title, uint width, uint height);
     virtual ~Window_win32();
     EventType getEvent(bool wait_for_event = false);
-    native_handle* getNativeHandle() {return (native_handle*)&hInstance;};
+    native_handle* getNativeHandle() const {return (native_handle*)&hInstance;};
     float getDisplayScale();
 #ifdef ENABLE_SHOWIMAGE
     void showImage(uint32_t* buf, uint32_t width, uint32_t height);
@@ -113,7 +114,10 @@ void Window_win32::Create(const char* title, uint width, uint height) {
     running      = true;
     //printf("Creating Win32 Window...\n");
 
+#ifdef ENABLE_DPIAWARE
     EnableDPIAware();
+#endif
+
     hInstance = GetModuleHandle(NULL);
 
     // Initialize the window class structure:
@@ -492,7 +496,7 @@ void Window_win32::ReadGamepadEvents() {
         return clipboard.c_str();
     }
 
-#endif ENABLE_CLIPBOARD
+#endif //ENABLE_CLIPBOARD
 //-------------------
 
 #ifdef ENABLE_FULLSCREEN

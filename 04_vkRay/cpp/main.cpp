@@ -197,6 +197,8 @@ int main(int argc, char *argv[]) {
 
     //--- Main Loop ---
     while (window.processEvents()) {
+        onscreen.swapchain.SetExtent(window.width(),window.height());  // for wayland
+
         if(window.raytrace) {
             rt.Update();
             rt.Render(scene.camera, onscreen.swapchain);

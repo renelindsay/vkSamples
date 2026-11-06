@@ -183,6 +183,7 @@ vmaBuffer CAllocator::vkmalloc(uint64_t size, VkBufferUsageFlags usage, bool map
     ASSERT(!!&vmaCreateBuffer, "Allocator was not initialized\n");
     VKERRCHECK(vmaCreateBuffer(allocator, &bufInfo, &allocCreateInfo,
                                &sb.buffer, &sb.bufferAlloc, &sb.allocInfo));
+    if(mapped) ASSERT(sb.allocInfo.pMappedData, "Buffer mapping failed");
     return sb;
 }
 
@@ -341,7 +342,7 @@ void CAllocator::CreateImage(VkExtent2D extent, VkFormat format, VkSampleCountFl
     viewInfo.subresourceRange.layerCount     = 1;
     VKERRCHECK(vkCreateImageView(device, &viewInfo, nullptr, &view));
 
-    img_stats += alloc->GetSize();
+    if(alloc) img_stats += alloc->GetSize();
 }
 //------------------------------------------------------------------------
 
@@ -497,7 +498,7 @@ std::vector<VmaBudget> CAllocator::GetBudget() {
 //---------------------CvkBuffer---------------------
 CvkBuffer::CvkBuffer(CAllocator& allocator) : allocator(&allocator), allocation(), buffer(), count(), stride() {}
 CvkBuffer::CvkBuffer() : allocator(default_allocator), allocation(), buffer(), count(), stride() {}
-CvkBuffer::~CvkBuffer() { Clear(); }
+CvkBuffer::~CvkBuffer() { CvkBuffer::Clear(); }
 
 void CvkBuffer::Clear() {
     if(!allocator) { allocator = default_allocator; }

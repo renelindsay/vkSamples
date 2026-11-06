@@ -120,7 +120,7 @@ void* Pack::Block(int x, int y) {  // Fetch compressed block
     int yf = b.h - 1 - y;  //flip
     uint64_t offs = (x+yf*b.w)*b.s;
     return (void*)((char*)buf + offs);
-};
+}
 
 void Pack::toGray(CImage& img) {
     ASSERT(img.colorspace == csUNORM, "Can't convert sRGB to grayscale... Convert to UNORM first.\n");
