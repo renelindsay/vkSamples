@@ -250,7 +250,7 @@ void ImGui_ImplgWindow_NewFrame() {
     g_scale = g_window->getScale();
     g_window->getSize(w, h);
     io.DisplaySize = ImVec2((float)w, (float)h);
-#ifndef __linux__  // On Wayland, DONT rescale when moving between displays with different scales.
+#ifndef __linux__  // On Wayland, DONT rescale when moving between displays with different scales.(Wayland already does it.)
     if (w > 0 && h > 0) io.DisplayFramebufferScale = ImVec2(g_scale ,g_scale);
 #endif
     //float delta =  maxf(cpu_delta_time(), 0.0001);
