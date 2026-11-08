@@ -42,7 +42,7 @@ public:
         init_info.QueueFamily    = graphics_queue.family;
         init_info.Queue          = graphics_queue.queue;
         init_info.DescriptorPool = VK_NULL_HANDLE;
-        init_info.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_IMAGE_SAMPLER_POOL_SIZE;
+        init_info.DescriptorPoolSize = IMGUI_IMPL_VULKAN_MINIMUM_SAMPLED_IMAGE_POOL_SIZE;
         init_info.MinImageCount  = swapchain.surface_caps.minImageCount;  //2
         init_info.ImageCount     = swapchain.info.minImageCount;          //3
         init_info.PipelineInfoMain.RenderPass  = renderpass;
