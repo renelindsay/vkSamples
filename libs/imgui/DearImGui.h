@@ -30,6 +30,7 @@ public:
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;   // Enable Gamepad Controls
         ImGui::StyleColorsDark();
+        ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImVec4(0.06f, 0.06f, 0.06f, 0.95f);
         io.Fonts->AddFontDefault();
         ImGui_ImplgWindow_Init(window);
         //------------
